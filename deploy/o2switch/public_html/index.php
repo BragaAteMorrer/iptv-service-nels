@@ -42,9 +42,10 @@ $identityRoutes = [
 ];
 $identityEnabled = (($_SERVER['NELSTV_ENABLE_IDENTITY_API'] ?? getenv('NELSTV_ENABLE_IDENTITY_API') ?: '') === '1');
 $identity = $identityEnabled && isset($identityRoutes[$request->getMethod().' '.$path]);
+$library = $identityEnabled && $request->getMethod() === 'GET' && $path === '/api/v1/me/library';
 $revokeDevice = $identityEnabled && $request->getMethod() === 'DELETE'
     && preg_match('#^/api/devices/[1-9][0-9]*$#D', $path) === 1;
-if (!$health && !$identity && !$revokeDevice) {
+if (!$health && !$identity && !$revokeDevice && !$library) {
     http_response_code(404);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
