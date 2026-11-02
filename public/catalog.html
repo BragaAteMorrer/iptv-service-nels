@@ -21,20 +21,18 @@ async function groups(){const data=await read('/api/catalog/groups?kind='+kind);
 async function updateFavorite(id,current){const r=await fetch('/api/v1/me/library/'+id+'/preferences',{method:'PATCH',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({favorite:!current})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossible de modifier les favoris');}
 function card(item){const el=document.createElement('article');el.className='tile';if(item.logo && /^https:\/\//i.test(item.logo)){const img=document.createElement('img');img.loading='lazy';img.referrerPolicy='no-referrer';img.alt='';img.src=item.logo;el.append(img);}
 const title=document.createElement('strong');title.textContent=item.name;const group=document.createElement('small');group.textContent=item.group_name||'Sans catégorie';el.append(title,group);
-if(bearer){const fav=document.createElement('button');fav.className=item.favorite?'fav':'';fav.textContent=item.favorite?'★ Favori':'☆ Ajouter aux favoris';fav.setAttribute('aria-label','Favori : '+item.name);fav.onclick=async()=>{fav.disabled=true;try{await updateFavorite(item.id,!!item.favorite);item.favorite=!item.favorite;fav.textContent=item.favorite?'★ Favori':'☆ Ajouter aux favoris';fav.className=item.favorite?'fav':'';if($('favs').checked && !item.favorite)el.remove();}catch(e){$('notice').textContent=e.message;}finally{fav.disabled=false;}};el.append(fav);}
+if(bearer){const fav=document.createElement('button');fav.className=item.favorite?'fav':'';fav.textContent=item.favorite?'★ Favori':'☆ Ajouter aux favoris';fav.setAttribute('aria-label','Favori : '+item.name);fav.onclick=async()=>{fav.disabled=true;try{await updateFavorite(item.id,!!item.favorite);item.favorite=!item.favorite;fav.textContent=item.favorite?'★ Favori':'☆ Ajouter aux favoris';fav.className=item.favorite?'fav':'';if($('favs').checked && !item.favorite)refresh();}catch(e){$('notice').textContent=e.message;}finally{fav.disabled=false;}};el.append(fav);}
 if(item.kind==='live'){const watch=document.createElement('button');watch.textContent='Voir la TV';watch.onclick=()=>location.href='/tv.html';el.append(watch);}return el;}
 async function refresh(){
 const serial=++requestNumber;
 try{
 let items=[];
 if(bearer){
- const d=await read('/api/v1/me/library?'+new URLSearchParams({kind,page,limit}));items=d.items;
- const query=$('q').value.trim().toLocaleLowerCase('fr');
- items=items.filter(x=>(!$('favs').checked || x.favorite) && (!$('group').value || x.group_name===$('group').value) && (!query || x.name.toLocaleLowerCase('fr').includes(query)));
- total=items.length;
- $('notice').textContent=items.length+' élément(s) sur cette page après filtres. Recherche et favoris limités à la page courante.';
- $('page').textContent='Page '+page;
- $('next').disabled=d.items.length<limit;
+ const d=await read('/api/v1/me/library?'+new URLSearchParams({kind,page,limit,q:$('q').value,group:$('group').value,favorite:$('favs').checked?'1':'0'}));
+ items=d.items;total=d.total;
+ $('notice').textContent=total.toLocaleString('fr-FR')+' résultats dans tout le catalogue';
+ $('page').textContent='Page '+page+' / '+Math.max(1,Math.ceil(total/limit));
+ $('next').disabled=page*limit>=total;
 }else{
  const params=new URLSearchParams({kind,page,limit,q:$('q').value,group:$('group').value});
  const d=await read('/api/catalog/discover?'+params);items=d.items;total=d.total;
