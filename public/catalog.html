@@ -1,0 +1,21 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nels TV — Catalogue</title><style>
+*{box-sizing:border-box}body{margin:0;background:#0f1725;color:#f1f6fe;font:15px system-ui}header{padding:22px 5%;background:#192337}main{margin:24px auto;max-width:1250px;padding:0 20px}
+h1{margin:0}a{color:#73d5e7}nav{display:flex;gap:10px;margin:20px 0;flex-wrap:wrap}button,select,input{padding:11px;border-radius:9px;border:1px solid #40556f;background:#1e3149;color:#fff}
+button{cursor:pointer}button.active{background:#236b7b}input{max-width:300px}#tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}.tile{min-height:100px;background:#1b2a40;border:1px solid #31445e;border-radius:12px;padding:16px;overflow-wrap:anywhere}.tile small{display:block;color:#b8c8d9;margin-top:8px}
+#notice{margin:12px 0;color:#a5c6db}#pager{display:flex;align-items:center;gap:12px;margin:20px 0}</style></head>
+<body><header><h1>Nels TV · Catalogue</h1><a href="/admin.html">Gérer les sources</a></header><main>
+<p>Explorateur de catalogue, sans divulguer les adresses de lecture.</p>
+<label>Jeton admin <input id="token" type="password" autocomplete="off" placeholder="X-Admin-Token"></label>
+<nav><button data-kind="live" class="active">TV en direct</button><button data-kind="movie">Films</button><button data-kind="episode">Épisodes</button></nav>
+<div><input id="q" placeholder="Rechercher un titre"><select id="group"><option value="">Toutes catégories</option></select><button id="search">Rechercher</button></div>
+<p id="notice" role="status">Saisis ton jeton pour explorer le catalogue.</p><div id="tiles"></div>
+<div id="pager"><button id="prev">Précédent</button><span id="page"></span><button id="next">Suivant</button></div>
+<script>
+const $=s=>document.getElementById(s);let kind='live',page=1,total=0,limit=48;
+async function read(path){let r=await fetch(path,{headers:{'X-Admin-Token':$('token').value}});let d=await r.json();if(!r.ok)throw new Error(d.error||'API error');return d;}
+async function groups(){let data=await read('/api/catalog/groups?kind='+kind);$('group').replaceChildren(new Option('Toutes catégories',''));for(let x of data.items)$('group').add(new Option(x.name+' ('+x.total+')',x.name));}
+async function refresh(){try{let params=new URLSearchParams({kind,page,limit,q:$('q').value,group:$('group').value});let data=await read('/api/catalog/discover?'+params);total=data.total;$('notice').textContent=total.toLocaleString('fr-FR')+' résultats';$('tiles').replaceChildren();for(let item of data.items){let e=document.createElement('div');e.className='tile';let title=document.createElement('strong');title.textContent=item.name;let group=document.createElement('small');group.textContent=item.group_name||'Sans catégorie';e.append(title,group);$('tiles').append(e);}$('page').textContent='Page '+page+' / '+Math.max(1,Math.ceil(total/limit));$('prev').disabled=page===1;$('next').disabled=page*limit>=total;}catch(err){$('notice').textContent=err.message;}}
+document.querySelectorAll('button[data-kind]').forEach(b=>b.onclick=async()=>{kind=b.dataset.kind;page=1;document.querySelectorAll('button[data-kind]').forEach(x=>x.classList.toggle('active',x===b));try{await groups();await refresh();}catch(e){$('notice').textContent=e.message;}});
+$('search').onclick=()=>{page=1;refresh()};$('prev').onclick=()=>{if(page>1){page--;refresh();}};$('next').onclick=()=>{if(page*limit<total){page++;refresh();}};$('token').addEventListener('change',async()=>{try{await groups();await refresh();}catch(e){$('notice').textContent=e.message;}});
+</script></main></body></html>
