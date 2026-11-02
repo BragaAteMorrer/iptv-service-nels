@@ -17,7 +17,7 @@ final class ApiController {
     #[Route('/api/sources',methods:['GET'])]
     public function sources(Request $req): JsonResponse {
         if (!$this->authorized($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
-        return new JsonResponse($this->db->fetchAllAssociative('SELECT id,name,kind,endpoint,status,last_sync_at,created_at FROM sources ORDER BY id DESC'));
+        return new JsonResponse($this->db->fetchAllAssociative('SELECT id,name,kind,status,last_sync_at,created_at FROM sources ORDER BY id DESC'));
     }
     #[Route('/api/sources',methods:['POST'])]
     public function create(Request $req): JsonResponse {
@@ -41,7 +41,7 @@ final class ApiController {
             if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/',$mac)) return new JsonResponse(['error'=>'Valid authorized MAC required'],422);
             $credentials=['mac'=>$mac];
         }
-        $this->db->insert('sources',['name'=>$name,'kind'=>$kind,'endpoint'=>$url,'credentials'=>$this->secrets->encrypt($credentials),'status'=>'pending']);
+        $this->db->insert('sources',['name'=>$name,'kind'=>$kind,'endpoint'=>$this->secrets->encrypt(['url'=>$url]),'credentials'=>$this->secrets->encrypt($credentials),'status'=>'pending']);
         return new JsonResponse(['id'=>(int)$this->db->lastInsertId(),'status'=>'pending'],201);
     }
     #[Route('/api/catalog',methods:['GET'])]
