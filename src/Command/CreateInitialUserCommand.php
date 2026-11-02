@@ -9,7 +9,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Question\HiddenQuestion;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'iptv:user:create-initial', description: 'Create the first Nels TV user securely from SSH only')]
@@ -42,16 +41,12 @@ final class CreateInitialUserCommand extends Command
                 $io->error('An account already exists; initial account creation is disabled.');
                 return Command::FAILURE;
             }
-            $question = new HiddenQuestion('Password (minimum 12 characters): ');
-            $question->setHiddenFallback(false);
-            $password = $this->getHelper('question')->ask($input, $output, $question);
+            $password = $io->askHidden('Password (minimum 12 characters)');
             if (!is_string($password) || strlen($password) < 12 || strlen($password) > 256) {
                 $io->error('Password must contain 12 to 256 bytes.');
                 return Command::INVALID;
             }
-            $confirm = new HiddenQuestion('Confirm password: ');
-            $confirm->setHiddenFallback(false);
-            $repeated = $this->getHelper('question')->ask($input, $output, $confirm);
+            $repeated = $io->askHidden('Confirm password');
             if (!is_string($repeated) || !hash_equals($password, $repeated)) {
                 $io->error('Passwords do not match.');
                 return Command::INVALID;
@@ -87,7 +82,8 @@ final class CreateInitialUserCommand extends Command
             return Command::SUCCESS;
         } catch (\Throwable $e) {
             $sqlState = $e instanceof \Doctrine\DBAL\Exception\DriverException ? ($e->getSQLState() ?? 'unknown') : 'not available';
-            $io->error('Account creation failed ('.get_class($e).'; SQLSTATE: '.$sqlState.'). No credentials were printed.');
+            $origin = str_starts_with($e->getFile(), dirname(__DIR__, 2)) ? basename($e->getFile()).':'.$e->getLine() : 'external-library';
+            $io->error('Account creation failed ('.get_class($e).'; SQLSTATE: '.$sqlState.'; origin: '.$origin.'). No credentials were printed.');
             return Command::FAILURE;
         }
     }
