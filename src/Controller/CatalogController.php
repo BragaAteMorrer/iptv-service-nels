@@ -22,7 +22,7 @@ final class CatalogController {
         $source=max(0,(int)$req->query->get('source',0));
         $group=trim((string)$req->query->get('group',''));
         $q=trim((string)$req->query->get('q',''));
-        if (mb_strlen($q)>100 || mb_strlen($group)>200) return new JsonResponse(['error'=>'Filter too long'],422);
+        if (strlen($q)>100 || strlen($group)>200) return new JsonResponse(['error'=>'Filter too long'],422);
         $where=['c.kind=?','c.active=TRUE']; $params=[$kind];$types=[ParameterType::STRING];
         if ($source>0){$where[]='c.source_id=?';$params[]=$source;$types[]=ParameterType::INTEGER;}
         if ($group!==''){$where[]='c.group_name=?';$params[]=$group;$types[]=ParameterType::STRING;}
