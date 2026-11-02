@@ -33,6 +33,9 @@ final class TrustedProviderEndpoint
         }
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower(rtrim((string) ($parts['host'] ?? ''), '.'));
+        if (str_starts_with($host, '[') && str_ends_with($host, ']')) {
+            $host = substr($host, 1, -1);
+        }
         if (!in_array($scheme, ['http', 'https'], true) || $host === ''
             || isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])) {
             throw new \RuntimeException('Provider endpoint must be an HTTP(S) URL without embedded credentials or fragments');
