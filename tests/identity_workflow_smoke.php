@@ -15,8 +15,9 @@ $db->executeStatement('CREATE TABLE app_devices (id INTEGER PRIMARY KEY AUTOINCR
 $email='test@nelstv.invalid';$password='test-password-12345';
 $db->executeStatement('INSERT INTO app_users(email,password_hash) VALUES (?,?)',[$email,password_hash($password,PASSWORD_DEFAULT)]);
 $controller=new IdentityController($db,new RequestRateLimiter());
-$req=static function(string $uri,array $body=[],string $token=''): Request {
-    $headers=['REMOTE_ADDR'=>'198.51.100.23','CONTENT_TYPE'=>'application/json'];
+$testIp='198.18.'.random_int(0,255).'.'.random_int(1,254);
+$req=static function(string $uri,array $body=[],string $token='') use ($testIp): Request {
+    $headers=['REMOTE_ADDR'=>$testIp,'CONTENT_TYPE'=>'application/json'];
     if ($token!=='') $headers['HTTP_AUTHORIZATION']='Bearer '.$token;
     return Request::create($uri,'POST',[],[],[],$headers,json_encode($body,JSON_THROW_ON_ERROR));
 };
