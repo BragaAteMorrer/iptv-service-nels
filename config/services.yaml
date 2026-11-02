@@ -1,0 +1,15 @@
+parameters:
+  env(DATABASE_URL): 'postgresql://iptv:iptv@database:5432/iptv?charset=utf8'
+  env(IPTV_ADMIN_TOKEN): ''
+  env(IPTV_SECRET_KEY): ''
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+  IptvService\:
+    resource: '../src/'
+    exclude: '../src/{Kernel.php}'
+  Doctrine\DBAL\Connection:
+    factory: ['Doctrine\DBAL\DriverManager', 'getConnection']
+    arguments:
+      - { url: '%env(DATABASE_URL)%' }
