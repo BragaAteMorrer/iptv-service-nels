@@ -10,8 +10,26 @@ services:
       DATABASE_URL: "postgresql://iptv:iptv@database:5432/iptv?charset=utf8"
       IPTV_ADMIN_TOKEN: "${IPTV_ADMIN_TOKEN}"
       IPTV_SECRET_KEY: "${IPTV_SECRET_KEY}"
+    volumes:
+      - private_imports:/app/var/imports
+    depends_on:
+      worker:
+    build: .
+    command: ["sh", "-c", "while true; do php bin/console iptv:jobs:run || true; sleep 5; done"]
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      APP_SECRET: "${APP_SECRET}"
+      DATABASE_URL: "postgresql://iptv:iptv@database:5432/iptv?charset=utf8"
+      IPTV_ADMIN_TOKEN: "${IPTV_ADMIN_TOKEN}"
+      IPTV_SECRET_KEY: "${IPTV_SECRET_KEY}"
+      IPTV_TRUSTED_HOSTS: "${IPTV_TRUSTED_HOSTS:-}"
+    volumes:
+      - private_imports:/app/var/imports
     depends_on:
       database:
+        condition: service_healthy
+  database:
         condition: service_healthy
   database:
     image: postgres:16-alpine
@@ -26,4 +44,5 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 volumes:
+  private_imports:
   pg_data:
