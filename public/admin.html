@@ -21,14 +21,25 @@ small{color:#a8b6c8}.item{border-bottom:1px solid #34455f;padding:15px 0}
 <div id="mag" hidden><label for="mac">MAC autorisée</label><input id="mac" placeholder="00:1A:79:XX:XX:XX"></div>
 <button type="submit">Enregistrer la source</button><div class="msg" id="msg" role="status"></div></form>
 </section><section><h2>Sources enregistrées</h2><button id="refresh" type="button">Actualiser</button><div id="sources"><small>Saisis le jeton puis actualise.</small></div></section></div><section><h2>Suivi des imports</h2><div id="jobs">Aucun import</div></section>
-<p><small>Cette étape enregistre les sources. L'import M3U local est disponible en CLI. La synchronisation à distance et les portails MAG nécessitent encore leurs connecteurs.</small></p>
+<p><small>Les fichiers M3U sont importés par le worker. Les sources M3U et Xtream distantes sont synchronisées si leur serveur est autorisé ; le connecteur MAG reste à développer.</small></p>
 <script>
 const $=id=>document.getElementById(id);
 function toggle(){ $('xtream').hidden=$('kind').value!=='xtream';$('mag').hidden=$('kind').value!=='mag'; }
 $('kind').addEventListener('change',toggle);
+async function parseApiResponse(res){
+ const raw=await res.text();
+ let value;
+ try {value=JSON.parse(raw);}
+ catch {
+   const preview=raw.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
+   throw new Error('Réponse non JSON (HTTP '+res.status+'). Vérifie les migrations PostgreSQL et les logs du serveur. '+preview);
+ }
+ if(!res.ok)throw new Error(value.error||value.message||'Erreur HTTP '+res.status);
+ return value;
+}
 async function api(method,path,data){
  const res=await fetch('/api/'+path,{method,headers:{'X-Admin-Token':$('token').value,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});
- const json=await res.json();if(!res.ok)throw new Error(json.error||'Erreur serveur');return json;
+ return parseApiResponse(res);
 }
 async function jobs(){
  try {let data=await api('GET','imports');$('jobs').replaceChildren();
@@ -40,7 +51,7 @@ $('upload').addEventListener('submit',async e=>{
  const form=new FormData();form.append('file',file);form.append('name',$('uploadName').value);
  $('uploadMessage').textContent='Envoi du fichier…';
  try{const res=await fetch('/api/imports/upload',{method:'POST',headers:{'X-Admin-Token':$('token').value},body:form});
- const data=await res.json();if(!res.ok)throw Error(data.error||'Import refusé');
+ const data=await parseApiResponse(res);
  $('uploadMessage').textContent='Fichier reçu. Import #'+data.job_id+' en attente du worker.';await jobs();await refresh();
  }catch(err){$('uploadMessage').textContent=err.message;}
 });
