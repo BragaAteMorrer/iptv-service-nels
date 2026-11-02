@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Command;
 use Doctrine\DBAL\Connection;
 use IptvService\Import\M3uParser;
+use IptvService\Security\SecretBox;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -10,7 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name:'iptv:import:m3u',description:'Import a local M3U into a registered source')]
 final class ImportM3uCommand extends Command {
-    public function __construct(private readonly Connection $db,private readonly M3uParser $parser){parent::__construct();}
+    public function __construct(private readonly Connection $db,private readonly M3uParser $parser,private readonly SecretBox $secrets){parent::__construct();}
     protected function configure(): void {
         $this->addArgument('source-id',InputArgument::REQUIRED)->addArgument('file',InputArgument::REQUIRED);
     }
@@ -31,7 +32,7 @@ final class ImportM3uCommand extends Command {
                 $name=$item['name'];
                 if ($kind==='movie' && preg_match('/(?:S\\d{1,2}E\\d{1,3}|\\d{1,2}x\\d{1,3})/i',$name)) $kind='episode';
                 $key=hash('sha256',$url);
-                $this->db->executeStatement('INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,last_seen_at) VALUES(?,?,?,?,?,?,?,?,NOW()) ON CONFLICT(source_id,external_id) DO UPDATE SET kind=EXCLUDED.kind,name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,epg_id=EXCLUDED.epg_id,stream_url=EXCLUDED.stream_url,last_seen_at=NOW(),active=TRUE',[$id,$key,$kind,$name,$item['group'],$item['logo'],$item['tvg_id'],$url]);
+                $this->db->executeStatement('INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,last_seen_at) VALUES(?,?,?,?,?,?,?,?,NOW()) ON CONFLICT(source_id,external_id) DO UPDATE SET kind=EXCLUDED.kind,name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,epg_id=EXCLUDED.epg_id,stream_url=EXCLUDED.stream_url,last_seen_at=NOW(),active=TRUE',[$id,$key,$kind,$name,$item['group'],$item['logo'],$item['tvg_id'],$this->secrets->encrypt(['url'=>$url])]);
                 if (++$count % 1000 === 0) { $this->db->commit();$this->db->beginTransaction(); }
             }
             $this->db->commit();
