@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Public staging entrypoint. All application APIs except health remain closed.
+// Staged API entrypoint. Identity endpoints remain disabled by default.
 use IptvService\Kernel;
 use IptvService\Bootstrap\Environment;
 use Symfony\Component\HttpFoundation\Request;
@@ -11,7 +11,20 @@ Environment::load(dirname(__DIR__));
 
 $request = Request::createFromGlobals();
 $path = $request->getPathInfo();
-if ($path !== '/api/health' || $request->getMethod() !== 'GET') {
+$health = $path === '/api/health' && $request->getMethod() === 'GET';
+$identityRoutes = [
+    'POST /api/identity/login' => true,
+    'POST /api/identity/logout' => true,
+    'POST /api/devices/pair/start' => true,
+    'POST /api/devices/pair/approve' => true,
+    'POST /api/devices/pair/status' => true,
+    'GET /api/devices' => true,
+];
+$identityEnabled = (($_SERVER['NELSTV_ENABLE_IDENTITY_API'] ?? getenv('NELSTV_ENABLE_IDENTITY_API') ?: '') === '1');
+$identity = $identityEnabled && isset($identityRoutes[$request->getMethod().' '.$path]);
+$revokeDevice = $identityEnabled && $request->getMethod() === 'DELETE'
+    && preg_match('#^/api/devices/[1-9][0-9]*$#D', $path) === 1;
+if (!$health && !$identity && !$revokeDevice) {
     http_response_code(404);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
