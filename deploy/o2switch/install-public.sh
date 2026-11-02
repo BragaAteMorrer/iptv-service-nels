@@ -7,9 +7,10 @@ if [[ ! -f "$APP_ROOT/composer.json" || ! -f "$APP_ROOT/vendor/autoload.php" ]];
   exit 1
 fi
 mkdir -p "$PUBLIC_ROOT"
-# Only install a public staging page. Do not copy admin pages, API routes or relays.
-# Preserve provider-managed .well-known (TLS challenges).
+# Only install the staging landing page, a health-only front controller and Apache restrictions.
+# Preserve provider-managed .well-known (TLS challenges), and leave existing files untouched.
 install -m 0644 "$APP_ROOT/deploy/o2switch/public_html/index.html" "$PUBLIC_ROOT/index.html"
+install -m 0644 "$APP_ROOT/deploy/o2switch/public_html/index.php" "$PUBLIC_ROOT/index.php"
 install -m 0644 "$APP_ROOT/deploy/o2switch/public_html/.htaccess" "$PUBLIC_ROOT/.htaccess"
-echo "Safe Nels TV staging landing page installed in public_html."
-echo "Symfony/API activation is intentionally blocked pending security review."
+echo "Safe staging page and Symfony health-only entrypoint installed in public_html."
+echo "All other API routes remain blocked."
