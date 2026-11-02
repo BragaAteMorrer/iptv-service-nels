@@ -10,4 +10,14 @@ $db->executeStatement('INSERT INTO app_sessions VALUES (?,?,?,?)',[1,hash('sha25
 $db->executeStatement('INSERT INTO app_sessions VALUES (?,?,?,?)',[1,hash('sha256',$tokens['revoked']),'2026-01-01 00:00:00','2099-01-01 00:00:00']);
 $db->executeStatement('INSERT INTO app_sessions VALUES (?,?,?,?)',[2,hash('sha256',$tokens['expired']),null,'2020-01-01 00:00:00']);
 $db->executeStatement('INSERT INTO app_devices VALUES (?,?,?)',[2,hash('sha256',$tokens['device']),'2026-01-01 00:00:00']);
-echo "PASS: isolated token fixtures ready\n";
+$viewer=new \IptvService\Security\ViewerAccess($db);
+$check=static function(string $token) use ($viewer): ?int {
+    $req=\Symfony\Component\HttpFoundation\Request::create('/','GET',[],[],[],['HTTP_AUTHORIZATION'=>'Bearer '.$token]);
+    return $viewer->userId($req);
+};
+if ($check($tokens['valid'])!==1 || $check($tokens['revoked'])!==null || $check($tokens['expired'])!==null || $check($tokens['device'])!==2) {
+    fwrite(STDERR,"FAIL: session lifecycle\n"); exit(1);
+}
+$db->executeStatement('DELETE FROM app_devices WHERE device_token_hash=?',[hash('sha256',$tokens['device'])]);
+if ($check($tokens['device'])!==null) { fwrite(STDERR,"FAIL: revoked device\n"); exit(1); }
+echo "PASS: valid, expired, revoked sessions and revoked device (SQLite memory)\n";
