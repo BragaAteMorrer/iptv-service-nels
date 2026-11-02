@@ -42,7 +42,12 @@ final class ApiController {
             $credentials=['mac'=>$mac];
         }
         $this->db->insert('sources',['name'=>$name,'kind'=>$kind,'endpoint'=>$this->secrets->encrypt(['url'=>$url]),'credentials'=>$this->secrets->encrypt($credentials),'status'=>'pending']);
-        return new JsonResponse(['id'=>(int)$this->db->lastInsertId(),'status'=>'pending'],201);
+        $sourceId=(int)$this->db->lastInsertId();
+        if($kind!=='mag'){
+            $this->db->insert('import_jobs',['source_id'=>$sourceId,'method'=>'remote']);
+            return new JsonResponse(['id'=>$sourceId,'job_id'=>(int)$this->db->lastInsertId(),'status'=>'queued'],202);
+        }
+        return new JsonResponse(['id'=>$sourceId,'status'=>'pending','message'=>'Connecteur MAG fournisseur à configurer'],201);
     }
     #[Route('/api/catalog',methods:['GET'])]
     public function catalog(Request $req): JsonResponse {
