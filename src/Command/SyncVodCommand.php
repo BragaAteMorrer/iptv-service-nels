@@ -23,6 +23,8 @@ final class SyncVodCommand extends Command
         private readonly TrustedProviderEndpoint $trusted
     ) {parent::__construct();}
 
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+
     protected function configure(): void
     {
         $this->addArgument('source-id',InputArgument::REQUIRED,'Xtream source ID');
@@ -77,13 +79,16 @@ final class SyncVodCommand extends Command
                     $synopsis=(string)($info['plot']??$item['plot']??'');
                     $genre=(string)($info['genre']??$item['genre']??'');
                     $this->db->beginTransaction();
-                    $seriesId=(int)$this->db->fetchOne(
-                        "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre)
-                         VALUES(?,?,?,?,?,?) ON CONFLICT(source_id,provider_series_id)
-                         DO UPDATE SET title=EXCLUDED.title,cover=EXCLUDED.cover,synopsis=EXCLUDED.synopsis,
-                         genre=EXCLUDED.genre,updated_at=NOW() RETURNING id",
-                        [$id,$sid,$title,$poster,$synopsis,$genre]
-                    );
+                    $seriesSql=$this->maria()
+                        ? "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),title=VALUES(title),cover=VALUES(cover),synopsis=VALUES(synopsis),genre=VALUES(genre),updated_at=NOW()"
+                        : "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre) VALUES(?,?,?,?,?,?) ON CONFLICT(source_id,provider_series_id) DO UPDATE SET title=EXCLUDED.title,cover=EXCLUDED.cover,synopsis=EXCLUDED.synopsis,genre=EXCLUDED.genre,updated_at=NOW() RETURNING id";
+                    $seriesParams=[$id,$sid,$title,$poster,$synopsis,$genre];
+                    if ($this->maria()) {
+                        $this->db->executeStatement($seriesSql,$seriesParams);
+                        $seriesId=(int)$this->db->lastInsertId();
+                    } else {
+                        $seriesId=(int)$this->db->fetchOne($seriesSql,$seriesParams);
+                    }
                     foreach($seasons as $seasonKey=>$entries) {
                         if(!is_array($entries)) continue;
                         foreach($entries as $entry) {
@@ -97,21 +102,17 @@ final class SyncVodCommand extends Command
                             if($episodeTitle==='') $episodeTitle='Épisode '.$number;
                             $logo=(string)($entry['info']['movie_image']??$poster);
                             $key='episode:'.$episodeId;
-                            $channelId=(int)$this->db->fetchOne(
-                                "INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,active,last_seen_at)
-                                VALUES(?,?,?,?,?,?,'','',TRUE,NOW())
-                                ON CONFLICT(source_id,external_id) DO UPDATE SET
-                                kind='episode',name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,
-                                active=TRUE,last_seen_at=NOW() RETURNING id",
-                                [$id,$key,'episode',$title.' S'.str_pad((string)$season,2,'0',STR_PAD_LEFT).'E'.str_pad((string)$number,2,'0',STR_PAD_LEFT).' · '.$episodeTitle,(string)($item['category_id']??''),$logo]
-                            );
-                            $this->db->executeStatement(
-                                "INSERT INTO vod_episodes(series_id,channel_id,season_number,episode_number,title)
-                                VALUES(?,?,?,?,?) ON CONFLICT(channel_id) DO UPDATE SET
-                                series_id=EXCLUDED.series_id,season_number=EXCLUDED.season_number,
-                                episode_number=EXCLUDED.episode_number,title=EXCLUDED.title",
-                                [$seriesId,$channelId,$season,$number,$episodeTitle]
-                            );
+                            $channelParams=[$id,$key,'episode',$title.' S'.str_pad((string)$season,2,'0',STR_PAD_LEFT).'E'.str_pad((string)$number,2,'0',STR_PAD_LEFT).' · '.$episodeTitle,(string)($item['category_id']??''),$logo];
+                            if ($this->maria()) {
+                                $this->db->executeStatement("INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,active,last_seen_at) VALUES(?,?,?,?,?,?,'','',TRUE,NOW()) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),kind='episode',name=VALUES(name),group_name=VALUES(group_name),logo=VALUES(logo),active=TRUE,last_seen_at=NOW()", $channelParams);
+                                $channelId=(int)$this->db->lastInsertId();
+                            } else {
+                                $channelId=(int)$this->db->fetchOne("INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,active,last_seen_at) VALUES(?,?,?,?,?,?,'','',TRUE,NOW()) ON CONFLICT(source_id,external_id) DO UPDATE SET kind='episode',name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,active=TRUE,last_seen_at=NOW() RETURNING id",$channelParams);
+                            }
+                            $episodeSql=$this->maria()
+                                ? "INSERT INTO vod_episodes(series_id,channel_id,season_number,episode_number,title) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE series_id=VALUES(series_id),season_number=VALUES(season_number),episode_number=VALUES(episode_number),title=VALUES(title)"
+                                : "INSERT INTO vod_episodes(series_id,channel_id,season_number,episode_number,title) VALUES(?,?,?,?,?) ON CONFLICT(channel_id) DO UPDATE SET series_id=EXCLUDED.series_id,season_number=EXCLUDED.season_number,episode_number=EXCLUDED.episode_number,title=EXCLUDED.title";
+                            $this->db->executeStatement($episodeSql,[$seriesId,$channelId,$season,$number,$episodeTitle]);
                             ++$episodes;
                         }
                     }
