@@ -54,7 +54,7 @@ final class SyncSourceCommand extends Command {
             $credentials=$this->secrets->decrypt($source['credentials']);
             $this->db->executeStatement("UPDATE sources SET status='syncing' WHERE id=?",[$id]);
             if ($source['kind']==='m3u') {
-                $response=$this->http->request('GET',$url,$downloadOptions+['timeout'=>90]);
+                $response=$this->http->request('GET',$url,array_replace($downloadOptions,['timeout'=>90]));
                 if ($response->getStatusCode()!==200) throw new \RuntimeException('Playlist request failed');
                 $stream=tmpfile();
                 if ($stream===false) throw new \RuntimeException('Could not create temporary file');
