@@ -20,12 +20,22 @@ final class LineupController {
         $limit=max(1,min(100,(int)$request->query->get('limit',50)));
         $fav=$request->query->get('favorites')==='1';
         $hidden=$request->query->get('include_hidden')==='1';
+        $admin=$this->viewers->isAdmin($request);
+        $user=$this->viewers->userId($request);
+        if (!$admin && $user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
         $where=['c.kind = ?','c.active = TRUE'];
         $params=['live'];
         $types=[ParameterType::STRING];
+        if (!$admin) {
+            $where[]='EXISTS (SELECT 1 FROM user_source_access usa WHERE usa.source_id=c.source_id AND usa.user_id=?)';
+            $params[]=$user;
+            $types[]=ParameterType::INTEGER;
+        }
         if ($fav) $where[]='COALESCE(p.favorite,FALSE) = TRUE';
         if (!$hidden) $where[]='COALESCE(p.hidden,FALSE) = FALSE';
-        $sql='SELECT c.id,c.name,c.group_name,c.logo,c.epg_id,c.source_id,p.channel_number,COALESCE(p.favorite,FALSE) AS favorite,COALESCE(p.hidden,FALSE) AS hidden FROM channels c LEFT JOIN channel_preferences p ON p.channel_id=c.id WHERE '.implode(' AND ',$where).' ORDER BY p.channel_number ASC NULLS LAST,c.name ASC,c.id ASC LIMIT ? OFFSET ?';
+        $join=$admin ? ' LEFT JOIN channel_preferences p ON p.channel_id=c.id ' : ' LEFT JOIN user_channel_preferences p ON p.user_id=? AND p.source_id=c.source_id AND p.external_id=c.external_id ';
+        if (!$admin) { array_unshift($params,$user); array_unshift($types,ParameterType::INTEGER); }
+        $sql='SELECT c.id,c.name,c.group_name,c.logo,c.epg_id,c.source_id,p.channel_number,COALESCE(p.favorite,FALSE) AS favorite,COALESCE(p.hidden,FALSE) AS hidden FROM channels c '.$join.' WHERE '.implode(' AND ',$where).' ORDER BY CASE WHEN p.channel_number IS NULL THEN 1 ELSE 0 END,p.channel_number ASC,c.name ASC,c.id ASC LIMIT ? OFFSET ?';
         $items=$this->db->fetchAllAssociative($sql,array_merge($params,[$limit,($page-1)*$limit]),array_merge($types,[ParameterType::INTEGER,ParameterType::INTEGER]));
         return new JsonResponse(['page'=>$page,'items'=>$items]);
     }
@@ -45,7 +55,9 @@ final class LineupController {
         // Use dynamic updates only for validated fixed-column allowlist; do not reset unspecified preferences.
         $this->db->beginTransaction();
         try {
-            $this->db->executeStatement('INSERT INTO channel_preferences(channel_id) VALUES(?) ON CONFLICT(channel_id) DO NOTHING',[$id]);
+            $maria=str_contains((string)($this->db->getParams()['driver']??''),'mysql');
+            $sql=$maria ? 'INSERT IGNORE INTO channel_preferences(channel_id) VALUES(?)' : 'INSERT INTO channel_preferences(channel_id) VALUES(?) ON CONFLICT(channel_id) DO NOTHING';
+            $this->db->executeStatement($sql,[$id]);
             foreach (['channel_number','favorite','hidden'] as $key) if(array_key_exists($key,$data)){
                 $this->db->executeStatement('UPDATE channel_preferences SET '.$key.'=?,updated_at=NOW() WHERE channel_id=?',[$data[$key],$id]);
             }
