@@ -47,6 +47,48 @@ final class PlaybackController
         return $data;
     }
 
+
+    /** Follow only a small number of individually validated HTTP redirects. */
+    private function fetchTrusted(string $url, int $timeout): array
+    {
+        for ($hop = 0; $hop <= 3; $hop++) {
+            $options = $this->trusted->requestOptions($url);
+            $response = $this->http->request('GET', $url, array_replace($options, ['timeout' => $timeout]));
+            $status = $response->getStatusCode();
+            if (!in_array($status, [301, 302, 303, 307, 308], true)) {
+                return [$response, $url];
+            }
+            $location = $response->getHeaders(false)['location'][0] ?? '';
+            $response->cancel();
+            if ($hop === 3 || !is_string($location) || $location === '') {
+                throw new \RuntimeException('Too many or invalid provider redirects');
+            }
+            if (str_starts_with($location, '//')) {
+                $location = (string)parse_url($url, PHP_URL_SCHEME) . ':' . $location;
+            } elseif (!preg_match('#^https?://#i', $location)) {
+                if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $location)) {
+                    throw new \RuntimeException('Unsafe redirect scheme');
+                }
+                $parts = parse_url($url);
+                if (!is_array($parts)) throw new \RuntimeException('Invalid redirect origin');
+                $origin = $parts['scheme'] . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+                $basePath = (string)($parts['path'] ?? '/');
+                if (str_starts_with($location, '?')) {
+                    $location = $origin . $basePath . $location;
+                } elseif (str_starts_with($location, '/')) {
+                    $location = $origin . $location;
+                } else {
+                    $location = $origin . substr($basePath, 0, (int)strrpos($basePath, '/') + 1) . $location;
+                }
+            }
+            // Validation is repeated before every new outbound request, including
+            // DNS pinning and exact hostname allowlist checks.
+            $this->trusted->requestOptions($location);
+            $url = $location;
+        }
+        throw new \RuntimeException('Too many provider redirects');
+    }
+
     #[Route('/api/playback/channel/{id<\d+>}/session', methods: ['POST'])]
     public function session(Request $request, int $id): JsonResponse
     {
@@ -78,15 +120,14 @@ final class PlaybackController
             } else {
                 return new JsonResponse(['error' => 'Type de source non pris en charge'], 422);
             }
-            $options = $this->trusted->requestOptions($url);
             // Detect provider-side errors before giving the browser an HLS URL.
             // Never include upstream URLs, credentials or response bodies in error messages.
-            $probe = $this->http->request('GET', $url, array_replace($options, ['timeout' => 12]));
+            [$probe, $finalUrl] = $this->fetchTrusted($url, 12);
             $status = $probe->getStatusCode();
             if ($status !== 200) {
                 $probe->cancel();
                 return new JsonResponse([
-                    'error' => 'Le fournisseur refuse le flux HLS (HTTP ' . $status . '). Cette chaîne peut nécessiter le format MPEG-TS (.ts), indisponible dans ce lecteur pour le moment.',
+                    'error' => 'Le serveur de diffusion renvoie HTTP ' . $status . ' après vérification des redirections. Le flux HLS reste inaccessible.',
                     'upstream_status' => $status,
                 ], 422);
             }
@@ -109,7 +150,7 @@ final class PlaybackController
             if (!str_starts_with(ltrim($body), '#EXTM3U') || !str_contains($body, '#EXT-X-')) {
                 return new JsonResponse(['error' => 'Le fournisseur ne renvoie pas de playlist HLS valide. Le format .m3u8 est probablement indisponible pour cette chaîne.'], 422);
             }
-            return new JsonResponse(['url' => '/api/playback/relay?ticket=' . rawurlencode($this->ticket($url, (int)$row['source_id'])), 'expires_in' => 900]);
+            return new JsonResponse(['url' => '/api/playback/relay?ticket=' . rawurlencode($this->ticket($finalUrl, (int)$row['source_id'])), 'expires_in' => 900]);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Lecture indisponible : vérifie le serveur et les autorisations réseau'], 422);
         }
@@ -121,8 +162,7 @@ final class PlaybackController
         try {
             $ticket = $this->openTicket((string)$request->query->get('ticket', ''));
             $url = $ticket['url'];
-            $options = $this->trusted->requestOptions($url);
-            $upstream = $this->http->request('GET', $url, array_replace($options, ['timeout' => 30]));
+            [$upstream, $url] = $this->fetchTrusted($url, 30);
             if ($upstream->getStatusCode() !== 200) {
                 return new Response('Flux indisponible (HTTP ' . $upstream->getStatusCode() . ')', 502);
             }
