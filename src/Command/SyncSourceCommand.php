@@ -12,6 +12,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsCommand(name:'iptv:sync:source',description:'Synchronize a registered, authorized remote source')]
@@ -31,7 +32,7 @@ final class SyncSourceCommand extends Command {
 
     private function fetchJson(string $url,array $query): array {
         $options=$this->trustedEndpoint->requestOptions($url);
-        $response=$this->http->request('GET',$url,$options+['query'=>$query]);
+        $response=HttpClient::create()->request('GET',$url,array_replace($options,['query'=>$query,'max_redirects'=>0]));
         if ($response->getStatusCode()!==200) throw new \RuntimeException('Provider request failed');
         $data=$response->toArray();
         if (!is_array($data)) throw new \RuntimeException('Unexpected provider response');
@@ -80,12 +81,29 @@ final class SyncSourceCommand extends Command {
             } else {
                 $api=rtrim($url,'/').'/player_api.php';
                 $auth=['username'=>$credentials['username'],'password'=>$credentials['password']];
-                $actions=[['get_live_streams','live'],['get_vod_streams','movie'],['get_series','episode']];
+                $actions=[['get_live_streams','live'],['get_vod_streams','movie'],['get_series','series']];
                 foreach($actions as [$action,$kind]) {
                     $entries=$this->fetchJson($api,$auth+['action'=>$action]);
                     $this->db->beginTransaction();
                     foreach($entries as $item) {
                         if (!is_array($item)) continue;
+                        if ($kind==='series') {
+                            $seriesId=(string)($item['series_id']??'');
+                            if (!ctype_digit($seriesId) || strlen($seriesId)>128) continue;
+                            $this->db->executeStatement(
+                                "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre)
+                                 VALUES(?,?,?,?,?,?)
+                                 ON CONFLICT(source_id,provider_series_id) DO UPDATE SET
+                                 title=EXCLUDED.title,cover=EXCLUDED.cover,synopsis=EXCLUDED.synopsis,
+                                 genre=EXCLUDED.genre,updated_at=NOW()",
+                                [$id,$seriesId,(string)($item['name']??'Série '.$seriesId),
+                                 (string)($item['cover']??''),(string)($item['plot']??''),
+                                 (string)($item['genre']??'')]
+                            );
+                            ++$count;
+                            if ($count%1000===0) {$this->db->commit();$this->db->beginTransaction();}
+                            continue;
+                        }
                         $eid=(string)($item['stream_id']??$item['series_id']??'');
                         if ($eid==='' || !ctype_digit($eid)) continue;
                         $name=(string)($item['name']??'Unnamed');
@@ -96,6 +114,17 @@ final class SyncSourceCommand extends Command {
                         if (++$count%1000===0) {$this->db->commit();$this->db->beginTransaction();}
                     }
                     $this->db->commit();
+                    if ($kind==='series') {
+                        // Old get_series records were mistakenly marked as episodes.
+                        // Deactivate only these legacy placeholders, preserving genuine
+                        // episode:<id> records, user progress and imported M3U rows.
+                        $this->db->executeStatement(
+                            "UPDATE channels SET active=FALSE
+                             WHERE source_id=? AND kind='episode' AND external_id LIKE 'episode:%'
+                               AND stream_url<>'' AND id NOT IN (SELECT channel_id FROM vod_episodes)",
+                            [$id]
+                        );
+                    }
                 }
             }
             $this->db->executeStatement("UPDATE sources SET status='ready',last_sync_at=NOW() WHERE id=?",[$id]);
@@ -104,7 +133,7 @@ final class SyncSourceCommand extends Command {
         } catch (\Throwable $e) {
             if ($this->db->isTransactionActive()) $this->db->rollBack();
             $this->db->executeStatement("UPDATE sources SET status='error' WHERE id=?",[$id]);
-            $output->writeln('<error>Synchronization failed: '.$e->getMessage().'</error>');
+            $output->writeln('<error>Synchronization failed; check trusted host, provider access and schema.</error>');
             return Command::FAILURE;
         }
     }
