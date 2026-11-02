@@ -86,7 +86,8 @@ final class CreateInitialUserCommand extends Command
             $io->success('Initial Nels TV account created. No API routes were opened.');
             return Command::SUCCESS;
         } catch (\Throwable $e) {
-            $io->error('Account creation failed. No credentials were printed.');
+            $sqlState = $e instanceof \Doctrine\DBAL\Exception\DriverException ? ($e->getSQLState() ?? 'unknown') : 'not available';
+            $io->error('Account creation failed ('.get_class($e).'; SQLSTATE: '.$sqlState.'). No credentials were printed.');
             return Command::FAILURE;
         }
     }
