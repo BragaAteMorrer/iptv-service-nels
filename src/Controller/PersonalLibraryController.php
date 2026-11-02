@@ -32,19 +32,35 @@ final class PersonalLibraryController
         if (!in_array($kind,['live','movie','episode'],true)) return new JsonResponse(['error'=>'Invalid kind'],422);
         $limit=max(1,min(100,(int)$request->query->get('limit',50)));
         $page=max(1,min(100000,(int)$request->query->get('page',1)));
-        $sql="SELECT c.id,c.source_id,c.external_id,c.name,c.kind,c.group_name,c.logo,
-            COALESCE(p.favorite,FALSE) favorite,COALESCE(p.hidden,FALSE) hidden,p.channel_number,
-            w.position_seconds,w.duration_seconds
-            FROM channels c
-            LEFT JOIN user_channel_preferences p ON p.user_id=? AND p.source_id=c.source_id AND p.external_id=c.external_id
-            LEFT JOIN user_watch_progress w ON w.user_id=? AND w.source_id=c.source_id AND w.external_id=c.external_id
-            WHERE c.active=TRUE AND c.kind=?
-            ORDER BY p.channel_number ASC NULLS LAST,c.name ASC,c.id ASC LIMIT ? OFFSET ?";
-        $items=$this->db->fetchAllAssociative($sql,[$user,$user,$kind,$limit,($page-1)*$limit],[
-            \Doctrine\DBAL\ParameterType::INTEGER,\Doctrine\DBAL\ParameterType::INTEGER,
-            \Doctrine\DBAL\ParameterType::STRING,\Doctrine\DBAL\ParameterType::INTEGER,\Doctrine\DBAL\ParameterType::INTEGER
-        ]);
-        return new JsonResponse(['items'=>$items,'page'=>$page,'limit'=>$limit,'kind'=>$kind]);
+        $q=trim((string)$request->query->get('q',''));
+        $group=trim((string)$request->query->get('group',''));
+        $favorite=(string)$request->query->get('favorite','0');
+        if (mb_strlen($q)>100 || mb_strlen($group)>200 || !in_array($favorite,['0','1'],true)) {
+            return new JsonResponse(['error'=>'Invalid filters'],422);
+        }
+        $where=['c.active=TRUE','c.kind=?','COALESCE(p.hidden,FALSE)=FALSE'];
+        $params=[$user,$kind];
+        if ($group!=='') {$where[]='c.group_name=?';$params[]=$group;}
+        if ($q!=='') {
+            $where[]="c.name ILIKE ? ESCAPE '\\'";
+            $escaped=str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$q);
+            $params[]='%'.$escaped.'%';
+        }
+        if ($favorite==='1') $where[]='p.favorite=TRUE';
+        $join=' LEFT JOIN user_channel_preferences p ON p.user_id=? AND p.source_id=c.source_id AND p.external_id=c.external_id ';
+        $filter=implode(' AND ',$where);
+        $total=(int)$this->db->fetchOne('SELECT COUNT(*) FROM channels c '.$join.' WHERE '.$filter,$params);
+        $items=$this->db->fetchAllAssociative(
+            "SELECT c.id,c.source_id,c.external_id,c.name,c.kind,c.group_name,c.logo,
+                COALESCE(p.favorite,FALSE) favorite,COALESCE(p.hidden,FALSE) hidden,p.channel_number,
+                w.position_seconds,w.duration_seconds
+             FROM channels c ".$join."
+             LEFT JOIN user_watch_progress w ON w.user_id=? AND w.source_id=c.source_id AND w.external_id=c.external_id
+             WHERE ".$filter."
+             ORDER BY p.channel_number ASC NULLS LAST,c.name ASC,c.id ASC LIMIT ? OFFSET ?",
+            array_merge([$user,$user],array_slice($params,1),[$limit,($page-1)*$limit])
+        );
+        return new JsonResponse(['items'=>$items,'total'=>$total,'page'=>$page,'limit'=>$limit,'kind'=>$kind]);
     }
 
     #[Route('/api/v1/me/library/{id<\d+>}/preferences', methods:['PATCH'])]
