@@ -30,6 +30,8 @@ final class SyncSourceCommand extends Command {
         $this->addArgument('source-id',InputArgument::REQUIRED,'Registered source ID');
     }
 
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+
     private function fetchJson(string $url,array $query): array {
         $options=$this->trustedEndpoint->requestOptions($url);
         $response=HttpClient::create()->request('GET',$url,array_replace($options,['query'=>$query,'max_redirects'=>0]));
@@ -40,7 +42,10 @@ final class SyncSourceCommand extends Command {
     }
 
     private function writeItem(int $id,string $key,string $kind,string $name,string $group,string $logo,string $epg,string $url): void {
-        $this->db->executeStatement('INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,last_seen_at,active) VALUES(?,?,?,?,?,?,?,?,NOW(),TRUE) ON CONFLICT(source_id,external_id) DO UPDATE SET kind=EXCLUDED.kind,name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,epg_id=EXCLUDED.epg_id,stream_url=EXCLUDED.stream_url,last_seen_at=NOW(),active=TRUE',[$id,$key,$kind,$name,$group,$logo,$epg,$this->secrets->encrypt(['url'=>$url])]);
+        $sql=$this->maria()
+          ? 'INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,last_seen_at,active) VALUES(?,?,?,?,?,?,?,?,NOW(),TRUE) ON DUPLICATE KEY UPDATE kind=VALUES(kind),name=VALUES(name),group_name=VALUES(group_name),logo=VALUES(logo),epg_id=VALUES(epg_id),stream_url=VALUES(stream_url),last_seen_at=NOW(),active=TRUE'
+          : 'INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,last_seen_at,active) VALUES(?,?,?,?,?,?,?,?,NOW(),TRUE) ON CONFLICT(source_id,external_id) DO UPDATE SET kind=EXCLUDED.kind,name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,epg_id=EXCLUDED.epg_id,stream_url=EXCLUDED.stream_url,last_seen_at=NOW(),active=TRUE';
+        $this->db->executeStatement($sql,[$id,$key,$kind,$name,$group,$logo,$epg,$this->secrets->encrypt(['url'=>$url])]);
     }
 
     protected function execute(InputInterface $input,OutputInterface $output): int {
@@ -91,11 +96,9 @@ final class SyncSourceCommand extends Command {
                             $seriesId=(string)($item['series_id']??'');
                             if (!ctype_digit($seriesId) || strlen($seriesId)>128) continue;
                             $this->db->executeStatement(
-                                "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre)
-                                 VALUES(?,?,?,?,?,?)
-                                 ON CONFLICT(source_id,provider_series_id) DO UPDATE SET
-                                 title=EXCLUDED.title,cover=EXCLUDED.cover,synopsis=EXCLUDED.synopsis,
-                                 genre=EXCLUDED.genre,updated_at=NOW()",
+                                ($this->maria()
+                                 ? "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),cover=VALUES(cover),synopsis=VALUES(synopsis),genre=VALUES(genre),updated_at=NOW()"
+                                 : "INSERT INTO vod_series(source_id,provider_series_id,title,cover,synopsis,genre) VALUES(?,?,?,?,?,?) ON CONFLICT(source_id,provider_series_id) DO UPDATE SET title=EXCLUDED.title,cover=EXCLUDED.cover,synopsis=EXCLUDED.synopsis,genre=EXCLUDED.genre,updated_at=NOW()"),
                                 [$id,$seriesId,(string)($item['name']??'Série '.$seriesId),
                                  (string)($item['cover']??''),(string)($item['plot']??''),
                                  (string)($item['genre']??'')]
