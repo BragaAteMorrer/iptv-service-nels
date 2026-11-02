@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\SourceAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -10,7 +11,7 @@ use Symfony\Component\Routing\Attribute\Route;
 /** Account-scoped preferences, keyed by provider item ID, not ephemeral database row ID. */
 final class PersonalLibraryController
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly SourceAccess $sourceAccess) {}
 
     private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
 
@@ -40,8 +41,9 @@ final class PersonalLibraryController
         if (mb_strlen($q)>100 || mb_strlen($group)>200 || !in_array($favorite,['0','1'],true)) {
             return new JsonResponse(['error'=>'Invalid filters'],422);
         }
-        $where=['c.active=TRUE','c.kind=?','COALESCE(p.hidden,FALSE)=FALSE'];
-        $params=[$user,$kind];
+        $where=['c.active=TRUE','c.kind=?','COALESCE(p.hidden,FALSE)=FALSE',
+            'EXISTS (SELECT 1 FROM user_source_access usa WHERE usa.source_id=c.source_id AND usa.user_id=?)'];
+        $params=[$user,$kind,$user];
         if ($group!=='') {$where[]='c.group_name=?';$params[]=$group;}
         if ($q!=='') {
             $where[]=$this->maria() ? "c.name LIKE ? ESCAPE '\\\\'" : "c.name ILIKE ? ESCAPE '\\\\'";
@@ -71,7 +73,7 @@ final class PersonalLibraryController
         $user=$this->user($request);
         if ($user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
         $channel=$this->db->fetchAssociative("SELECT source_id,external_id,kind FROM channels WHERE id=? AND active=TRUE",[$id]);
-        if (!$channel) return new JsonResponse(['error'=>'Item not found'],404);
+        if (!$channel || !$this->sourceAccess->allows($user,(int)$channel['source_id'])) return new JsonResponse(['error'=>'Item not found'],404);
         try {$data=$request->toArray();} catch (\Throwable) {return new JsonResponse(['error'=>'Invalid JSON'],400);}
         if (!$data || array_diff(array_keys($data),['favorite','hidden','channel_number'])) return new JsonResponse(['error'=>'Unsupported preferences'],422);
         foreach(['favorite','hidden'] as $key) {
