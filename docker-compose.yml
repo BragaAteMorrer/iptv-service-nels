@@ -10,6 +10,7 @@ services:
       DATABASE_URL: "postgresql://iptv:iptv@database:5432/iptv?charset=utf8"
       IPTV_ADMIN_TOKEN: "${IPTV_ADMIN_TOKEN}"
       IPTV_SECRET_KEY: "${IPTV_SECRET_KEY}"
+      IPTV_TRUSTED_HOSTS: "${IPTV_TRUSTED_HOSTS:-}"
     volumes:
       - private_imports:/app/var/imports
     depends_on:
