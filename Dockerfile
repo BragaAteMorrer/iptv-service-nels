@@ -6,4 +6,4 @@ WORKDIR /app
 RUN printf 'upload_max_filesize=350M\npost_max_size=360M\nmemory_limit=512M\nmax_execution_time=300\n' > /usr/local/etc/php/conf.d/iptv-upload.ini
 COPY . .
 RUN composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader --no-scripts
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "public", "public/index.php"]
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "public", "public/router.php"]
