@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\SourceAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -10,7 +11,9 @@ use Symfony\Component\Routing\Attribute\Route;
 /** Read-only indexed series catalog; content is populated by a future Xtream metadata sync. */
 final class IndexedSeriesController
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly SourceAccess $sourceAccess) {}
+
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
 
     private function user(Request $r): ?int
     {
@@ -25,13 +28,14 @@ final class IndexedSeriesController
     #[Route('/api/v1/vod/indexed-series',methods:['GET'])]
     public function index(Request $request): JsonResponse
     {
-        if ($this->user($request)===null) return new JsonResponse(['error'=>'Unauthorized'],401);
+        $user=$this->user($request);
+        if ($user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
         $page=max(1,min(10000,(int)$request->query->get('page',1)));
         $limit=max(1,min(100,(int)$request->query->get('limit',30)));
         $q=trim((string)$request->query->get('q',''));
         if (mb_strlen($q)>100) return new JsonResponse(['error'=>'Search too long'],422);
-        $where='';$args=[];
-        if($q!==''){$where=" WHERE title ILIKE ? ESCAPE '\\'";$args[]='%'.str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$q).'%';}
+        $where=' WHERE EXISTS (SELECT 1 FROM user_source_access usa WHERE usa.source_id=vod_series.source_id AND usa.user_id=?)';$args=[$user];
+        if($q!==''){$where.=$this->maria() ? " AND title LIKE ? ESCAPE '\\\\'" : " AND title ILIKE ? ESCAPE '\\\\'";$args[]='%'.str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$q).'%';}
         $total=(int)$this->db->fetchOne('SELECT count(*) FROM vod_series'.$where,$args);
         $rows=$this->db->fetchAllAssociative(
             'SELECT id,source_id,provider_series_id,title,cover,synopsis,genre FROM vod_series'.$where.
@@ -48,7 +52,7 @@ final class IndexedSeriesController
         $series=$this->db->fetchAssociative(
             'SELECT id,source_id,provider_series_id,title,cover,synopsis,genre FROM vod_series WHERE id=?',[$id]
         );
-        if (!$series) return new JsonResponse(['error'=>'Not found'],404);
+        if (!$series || !$this->sourceAccess->allows($user,(int)$series['source_id'])) return new JsonResponse(['error'=>'Not found'],404);
         $episodes=$this->db->fetchAllAssociative(
             'SELECT e.season_number,e.episode_number,e.title,c.id AS channel_id,c.name,c.logo,
                     w.position_seconds,w.duration_seconds
