@@ -1,4 +1,83 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
-<title>Nels TV — Préparation</title><style>body{background:#0b1220;color:#f1f5f9;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:grid;min-height:100vh;place-items:center;margin:0;padding:16px}main{max-width:560px;padding:36px;border:1px solid #334155;border-radius:20px;background:#111c30}h1{font-size:2rem;margin:0 0 1rem}p{line-height:1.6;color:#cbd5e1}small{color:#94a3b8}</style></head>
-<body><main><h1>Nels TV</h1><p>Le service est en cours de configuration. L'interface sera disponible après validation des accès et des tests de sécurité.</p><small>nsatellite.bragaatemorrer.fr</small></main></body></html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Nels TV — Connexion</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,#1d3159 0,#0a1020 48%,#080c15 100%);color:#eef3ff;display:grid;place-items:center;padding:25px}main{width:min(440px,100%);background:#101b2e;border:1px solid #324261;border-radius:22px;padding:34px;box-shadow:0 18px 60px #0005}h1{font-size:2.6rem;letter-spacing:-.05em;margin:0}h1 span{color:#65b8ff}.subtitle{color:#aebdd4;line-height:1.55;margin:10px 0 26px}label{display:block;margin:18px 0 7px;font-weight:650;font-size:.92rem}input{width:100%;padding:13px;border-radius:10px;background:#0a1220;border:1px solid #50627c;color:#fff;font:inherit}input:focus{outline:2px solid #69b9ff;outline-offset:1px}button{width:100%;padding:14px;margin-top:23px;border:0;border-radius:11px;background:#4aabf5;color:#051220;font:inherit;font-weight:750;cursor:pointer}button:disabled{opacity:.65;cursor:wait}.muted{color:#9bacc7;font-size:.84rem;line-height:1.5}#message{margin:18px 0 0;min-height:20px;color:#ffd1d1}#message.ok{color:#b3f3ce}#session{display:none}#identity{display:block}ul{padding-left:20px;line-height:1.8}.footer{margin-top:26px;border-top:1px solid #33415b;padding-top:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Nels <span>TV</span></h1>
+  <p class="subtitle">Votre espace personnel de télévision, films et séries.</p>
+  <section id="identity">
+    <form id="login">
+      <label for="email">Adresse e-mail</label>
+      <input type="email" id="email" name="email" required autocomplete="username" maxlength="254">
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" minlength="12">
+      <button type="submit" id="submit">Se connecter</button>
+    </form>
+  </section>
+  <section id="session" aria-live="polite">
+    <h2>Connexion établie</h2>
+    <p class="muted">La gestion des appareils est disponible. Le catalogue TV sera activé après ses derniers contrôles de sécurité.</p>
+    <h3>Mes appareils</h3>
+    <ul id="devices"><li>Chargement…</li></ul>
+    <button type="button" id="logout">Se déconnecter</button>
+  </section>
+  <p id="message" role="status" aria-live="polite"></p>
+  <p class="muted footer">Nels TV · Accès personnel sécurisé · Service en préparation</p>
+</main>
+<script>
+'use strict';
+(() => {
+  const form=document.getElementById('login');
+  const identity=document.getElementById('identity');
+  const session=document.getElementById('session');
+  const message=document.getElementById('message');
+  const devices=document.getElementById('devices');
+  const submit=document.getElementById('submit');
+  let token=null;
+  function notice(text,ok=false){message.textContent=text;message.classList.toggle('ok',ok);}
+  async function call(url,options={}){
+    const headers={'Accept':'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})};
+    const response=await fetch(url,{...options,headers,cache:'no-store',credentials:'omit',redirect:'error'});
+    let body={};
+    try{body=await response.json();}catch(_){}
+    return {status:response.status,body};
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();submit.disabled=true;notice('');
+    try{
+      const email=document.getElementById('email').value.trim();
+      const password=document.getElementById('password').value;
+      const result=await call('/api/identity/login',{method:'POST',body:JSON.stringify({email,password})});
+      document.getElementById('password').value='';
+      if(result.status===404){notice('La connexion n’est pas encore activée sur ce serveur.');return;}
+      if(result.status===429){notice('Trop de tentatives. Réessayez plus tard.');return;}
+      if(result.status!==200 || !/^[a-f0-9]{64}$/.test(result.body.access_token||'')){notice('Connexion impossible. Vérifiez vos identifiants.');return;}
+      token=result.body.access_token;
+      identity.style.display='none';session.style.display='block';
+      notice('Vous êtes connecté.',true);
+      const list=await call('/api/devices',{method:'GET'});
+      devices.replaceChildren();
+      if(list.status!==200 || !Array.isArray(list.body.items)){const li=document.createElement('li');li.textContent='Liste des appareils indisponible.';devices.append(li);return;}
+      if(!list.body.items.length){const li=document.createElement('li');li.textContent='Aucun appareil associé.';devices.append(li);}
+      for(const item of list.body.items){const li=document.createElement('li');li.textContent=String(item.device_name||'Appareil');devices.append(li);}
+    }catch(_){notice('Impossible de joindre le service de connexion.');}
+    finally{submit.disabled=false;}
+  });
+  document.getElementById('logout').addEventListener('click',async()=>{
+    try{if(token)await call('/api/identity/logout',{method:'POST'});}catch(_){}
+    token=null;session.style.display='none';identity.style.display='block';devices.replaceChildren();notice('Vous êtes déconnecté.',true);
+  });
+  window.addEventListener('pagehide',()=>{token=null;});
+})();
+</script>
+</body>
+</html>
