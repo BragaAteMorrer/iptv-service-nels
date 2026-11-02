@@ -4,6 +4,7 @@ namespace IptvService\Command;
 
 use Doctrine\DBAL\Connection;
 use IptvService\Import\M3uParser;
+use IptvService\Catalog\ContentClassifier;
 use IptvService\Security\SecretBox;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -18,7 +19,8 @@ final class SyncSourceCommand extends Command {
         private readonly Connection $db,
         private readonly SecretBox $secrets,
         private readonly HttpClientInterface $http,
-        private readonly M3uParser $parser
+        private readonly M3uParser $parser,
+        private readonly ContentClassifier $classifier
     ) {parent::__construct();}
 
     protected function configure(): void {
@@ -79,9 +81,7 @@ final class SyncSourceCommand extends Command {
                     $this->db->beginTransaction();
                     foreach ($this->parser->parse($stream) as $item) {
                         $streamUrl=$item['url'];
-                        $extension=strtolower(pathinfo((string)(parse_url($streamUrl,PHP_URL_PATH)?:''),PATHINFO_EXTENSION));
-                        $group=strtolower($item['group']);
-                        $kind=preg_match('/series|série|episod|temporada|season|saison/u',$group)?'episode':(preg_match('/vod|films?|movies?|cinema|cinéma/u',$group)||in_array($extension,['mp4','avi','mkv','mov'],true)?'movie':'live');
+                        $kind=$this->classifier->classify($item['name'],$item['group'],$streamUrl);
                         $this->writeItem($id,hash('sha256',$streamUrl),$kind,$item['name'],$item['group'],$item['logo'],$item['tvg_id'],$streamUrl);
                         if (++$count%1000===0) {$this->db->commit();$this->db->beginTransaction();}
                     }
