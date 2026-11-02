@@ -41,11 +41,10 @@ final class ApiController {
             if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/',$mac)) return new JsonResponse(['error'=>'Valid authorized MAC required'],422);
             $credentials=['mac'=>$mac];
         }
-        $this->db->insert('sources',['name'=>$name,'kind'=>$kind,'endpoint'=>$this->secrets->encrypt(['url'=>$url]),'credentials'=>$this->secrets->encrypt($credentials),'status'=>'pending']);
-        $sourceId=(int)$this->db->lastInsertId();
+        $sourceId=(int)$this->db->fetchOne('INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?) RETURNING id',[$name,$kind,$this->secrets->encrypt(['url'=>$url]),$this->secrets->encrypt($credentials),'pending']);
         if($kind!=='mag'){
-            $this->db->insert('import_jobs',['source_id'=>$sourceId,'method'=>'remote']);
-            return new JsonResponse(['id'=>$sourceId,'job_id'=>(int)$this->db->lastInsertId(),'status'=>'queued'],202);
+            $jobId=(int)$this->db->fetchOne('INSERT INTO import_jobs(source_id,method) VALUES (?,?) RETURNING id',[$sourceId,'remote']);
+            return new JsonResponse(['id'=>$sourceId,'job_id'=>$jobId,'status'=>'queued'],202);
         }
         return new JsonResponse(['id'=>$sourceId,'status'=>'pending','message'=>'Connecteur MAG fournisseur à configurer'],201);
     }
