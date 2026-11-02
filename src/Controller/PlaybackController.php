@@ -55,10 +55,10 @@ final class PlaybackController
 
 
     /** Follow only a small number of individually validated HTTP redirects. */
-    private function fetchTrusted(string $url, int $timeout): array
+    private function fetchTrusted(string $url, int $timeout, bool $validatedTicket = false): array
     {
         for ($hop = 0; $hop <= 3; $hop++) {
-            $options = $this->trusted->requestOptions($url, $hop > 0);
+            $options = $this->trusted->requestOptions($url, $validatedTicket || $hop > 0);
             $response = $this->http->request('GET', $url, array_replace($options, ['timeout' => $timeout]));
             $status = $response->getStatusCode();
             if (!in_array($status, [301, 302, 303, 307, 308], true)) {
@@ -181,7 +181,8 @@ final class PlaybackController
         try {
             $ticket = $this->openTicket((string)$request->query->get('ticket', ''));
             $url = $ticket['url'];
-            [$upstream, $url] = $this->fetchTrusted($url, 30);
+            // Relay tickets are encrypted and created only after a validated redirect or HLS reference.
+            [$upstream, $url] = $this->fetchTrusted($url, 30, true);
             if ($upstream->getStatusCode() !== 200) {
                 return new Response('Flux indisponible (HTTP ' . $upstream->getStatusCode() . ')', 502);
             }
@@ -236,7 +237,8 @@ final class PlaybackController
             ]);
             return $response;
         } catch (\Throwable $e) {
-            return new Response('Lien de lecture invalide, expiré ou inaccessible', 403);
+            error_log('Playback relay failed: ' . get_class($e));
+            return new Response('Lecture relay refusée ou indisponible', 403);
         }
     }
 
