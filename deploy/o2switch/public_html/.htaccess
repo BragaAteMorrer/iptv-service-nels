@@ -1,13 +1,15 @@
-Options -Indexes
+Options -Indexes -MultiViews
 DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^\.well-known/ - [L]
-    # Staging only: no API, playback relay, PHP or internal files exposed.
-    RewriteRule ^api(?:/|$) - [F,L,NC]
-    RewriteRule ^(?:index\.php|router\.php)$ - [F,L,NC]
-    RewriteRule \.(?:php|sql|env|log|lock|json|yaml|yml)$ - [F,L,NC]
+    # The sole staging API endpoint. Symfony will handle /api/health.
+    RewriteRule ^api/health$ index.php [END]
+    # All other API routes remain closed by default.
+    RewriteRule ^api(?:/|$) - [F,END,NC]
+    RewriteRule ^(?:index\.php|router\.php)$ - [F,END,NC]
+    RewriteRule \.(?:php|sql|env|log|lock|json|yaml|yml)$ - [F,END,NC]
 </IfModule>
 
 <FilesMatch "^\.(?!well-known).*$">
