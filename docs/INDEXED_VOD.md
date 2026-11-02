@@ -26,3 +26,20 @@ La fiche renvoie les épisodes actifs classés saison/numéro, et les marqueurs 
 Les métadonnées sont liées à des sources : supprimer une source supprime les fiches. L'accès aux sources n'est pas encore cloisonné par propriétaire de compte. Ne pas exposer ces endpoints sur Internet / o2switch avant renforcement de l'authentification, du rate limiting, de l'isolation des comptes et de la gestion des secrets.
 
 La lecture VOD n'est pas encore connectée et aucun APK n'a été construit. Vérifier `php -l` et les tests après mise à jour du dépôt.
+
+## Synchronisation Xtream réelle — ajout
+
+Un nouveau synchroniseur **manuel, borné et indépendant** de l'import TV a été ajouté :
+
+```bash
+docker compose exec api php bin/console iptv:vod:sync 1 --offset=0 --limit=10
+docker compose exec api php bin/console iptv:vod:sync 1 --offset=10 --limit=10
+```
+
+Remplace `1` par l'identifiant de ta source Xtream (visible depuis l'admin). Chaque lancement consulte `get_series`, puis `get_series_info` pour au maximum 25 séries sélectionnées; il importe les vrais identifiants d'épisodes, numéros de saison, titres, affiches et métadonnées fournies. Les erreurs d'une série sont comptabilisées sans afficher les URL et mots de passe du fournisseur. Le paramètre `--offset` permet d'avancer par lots.
+
+La commande est délibérément **non automatique** : ne pas la lancer en cron tant que les limites du fournisseur, le coût de `get_series` répété, la pagination et le verrouillage anti-exécutions simultanées ne sont pas gérés. Les vieux objets `episode` issus de `get_series` restent présents : ils doivent être reclassés/désactivés après vérification. La lecture VOD n'est pas encore développée.
+
+Le client HTTP de cette commande ne suit pas les redirections et utilise le contrôle DNS/allowlist préexistant. Avant de synchroniser, vérifier `IPTV_TRUSTED_HOSTS`, la compatibilité de l'API fournisseur et les droits d'accès.
+
+**Attention :** cette nouvelle commande et ces fichiers n'ont pas été exécutés dans l'environnement Docker de l'utilisateur. Commencer par 1 ou 2 séries en test et vérifier le nombre d'épisodes et la cohérence des fiches avant d'augmenter.
