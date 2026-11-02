@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use IptvService\Security\SourceAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -62,7 +63,8 @@ final class PersonalLibraryController
              LEFT JOIN user_watch_progress w ON w.user_id=? AND w.source_id=c.source_id AND w.external_id=c.external_id
              WHERE ".$filter."
              ORDER BY CASE WHEN p.channel_number IS NULL THEN 1 ELSE 0 END ASC,p.channel_number ASC,c.name ASC,c.id ASC LIMIT ? OFFSET ?",
-            array_merge([$user,$user],array_slice($params,1),[$limit,($page-1)*$limit])
+            array_merge([$user,$user],array_slice($params,1),[$limit,($page-1)*$limit]),
+            array_merge(array_fill(0,count($params)+1,ParameterType::STRING),[ParameterType::INTEGER,ParameterType::INTEGER])
         );
         return new JsonResponse(['items'=>$items,'total'=>$total,'page'=>$page,'limit'=>$limit,'kind'=>$kind]);
     }
