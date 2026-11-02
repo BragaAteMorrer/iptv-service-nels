@@ -99,11 +99,11 @@ final class SyncVodCommand extends Command
                             $key='episode:'.$episodeId;
                             $channelId=(int)$this->db->fetchOne(
                                 "INSERT INTO channels(source_id,external_id,kind,name,group_name,logo,epg_id,stream_url,active,last_seen_at)
-                                VALUES(?,?,?,?,?,'','','',TRUE,NOW())
+                                VALUES(?,?,?,?,?,?,'','',TRUE,NOW())
                                 ON CONFLICT(source_id,external_id) DO UPDATE SET
-                                kind='episode',name=EXCLUDED.name,group_name=EXCLUDED.group_name,
+                                kind='episode',name=EXCLUDED.name,group_name=EXCLUDED.group_name,logo=EXCLUDED.logo,
                                 active=TRUE,last_seen_at=NOW() RETURNING id",
-                                [$id,$key,'episode',$title.' S'.str_pad((string)$season,2,'0',STR_PAD_LEFT).'E'.str_pad((string)$number,2,'0',STR_PAD_LEFT).' · '.$episodeTitle,(string)($item['category_id']??'')]
+                                [$id,$key,'episode',$title.' S'.str_pad((string)$season,2,'0',STR_PAD_LEFT).'E'.str_pad((string)$number,2,'0',STR_PAD_LEFT).' · '.$episodeTitle,(string)($item['category_id']??''),$logo]
                             );
                             $this->db->executeStatement(
                                 "INSERT INTO vod_episodes(series_id,channel_id,season_number,episode_number,title)
