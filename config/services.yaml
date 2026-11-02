@@ -5,9 +5,5 @@ services:
   IptvService\:
     resource: '../src/'
     exclude: '../src/{Kernel.php,Import/XtreamClient.php}'
-  Doctrine\DBAL\Connection:
-    factory: ['Doctrine\DBAL\DriverManager', 'getConnection']
-    arguments:
-      -
-        driver: 'pdo_mysql'
-        url: '%env(resolve:DATABASE_URL)%'
+  Doctrine\\DBAL\\Connection:
+    factory: ['IptvService\\Database\\ConnectionFactory', 'create']
