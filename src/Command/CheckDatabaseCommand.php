@@ -37,6 +37,11 @@ final class CheckDatabaseCommand extends Command
         } catch (\Throwable $e) {
             $output->writeln('<error>Database check failed ('.get_class($e).').</error>');
             $output->writeln('<comment>SQLSTATE: '.($e instanceof \Doctrine\DBAL\Exception\DriverException ? ($e->getSQLState() ?? 'unknown') : 'not available').'</comment>');
+            $previous = $e->getPrevious();
+            if ($previous instanceof \\PDOException) {
+                $info = $previous->errorInfo ?? [];
+                $output->writeln('<comment>MySQL error number: '.(isset($info[1]) && is_numeric($info[1]) ? (string)(int)$info[1] : 'unavailable').'</comment>');
+            }
             $output->writeln('<comment>Check DATABASE_URL, database privileges and driver. Connection strings are never printed.</comment>');
             return Command::FAILURE;
         }
