@@ -1,5 +1,5 @@
 framework:
-  secret: '%kernel.secret%'
+  secret: '%env(APP_SECRET)%'
   router:
     resource: '%kernel.project_dir%/config/routes.yaml'
     type: yaml
