@@ -2,8 +2,8 @@ CREATE TABLE IF NOT EXISTS sources (
  id BIGSERIAL PRIMARY KEY,
  name VARCHAR(150) NOT NULL,
  kind VARCHAR(16) NOT NULL CHECK (kind IN ('m3u','xtream','mag')),
- endpoint TEXT,
- credentials BYTEA,
+ endpoint TEXT NOT NULL,
+ credentials TEXT,
  status VARCHAR(20) NOT NULL DEFAULT 'pending',
  last_sync_at TIMESTAMPTZ,
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
