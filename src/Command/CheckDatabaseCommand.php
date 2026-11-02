@@ -20,7 +20,7 @@ final class CheckDatabaseCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
-            $platform = $this->db->getDatabasePlatform()->getName();
+            $platform = (new \ReflectionClass($this->db->getDatabasePlatform()))->getShortName();
             $version = (string) $this->db->fetchOne('SELECT VERSION()');
             $database = (string) $this->db->fetchOne(
                 str_contains((string) ($this->db->getParams()['driver'] ?? ''), 'mysql')
