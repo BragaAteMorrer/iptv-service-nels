@@ -105,7 +105,7 @@ final class PersonalLibraryController
         $user=$this->user($request);
         if ($user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
         $channel=$this->db->fetchAssociative("SELECT source_id,external_id,kind FROM channels WHERE id=? AND active=TRUE",[$id]);
-        if (!$channel) return new JsonResponse(['error'=>'Item not found'],404);
+        if (!$channel || !$this->sourceAccess->allows($user,(int)$channel['source_id'])) return new JsonResponse(['error'=>'Item not found'],404);
         if (!in_array($channel['kind'],['movie','episode'],true)) return new JsonResponse(['error'=>'Progress only for VOD'],422);
         try {$data=$request->toArray();} catch (\Throwable) {return new JsonResponse(['error'=>'Invalid JSON'],400);}
         $position=$data['position_seconds']??null;
