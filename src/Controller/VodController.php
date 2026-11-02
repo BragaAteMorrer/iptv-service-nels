@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\SourceAccess;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -13,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class VodController
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db,private readonly SourceAccess $sources) {}
 
     private function user(Request $request): ?int
     {
@@ -41,7 +42,7 @@ final class VodController
              WHERE c.id=? AND c.active=TRUE AND c.kind IN ('movie','episode')",
             [$user,$user,$id]
         );
-        if (!$row) return new JsonResponse(['error'=>'Not found'],404);
+        if (!$row || !$this->sources->allows($user,(int)$row['source_id'])) return new JsonResponse(['error'=>'Not found'],404);
         $episode=$this->parseEpisode((string)$row['name']);
         return new JsonResponse(['item'=>$row,'episode'=>$episode]);
     }
@@ -49,16 +50,19 @@ final class VodController
     #[Route('/api/v1/vod/series',methods:['GET'])]
     public function series(Request $request): JsonResponse
     {
-        if ($this->user($request)===null) return new JsonResponse(['error'=>'Unauthorized'],401);
+        $user=$this->user($request);
+        if ($user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
         $page=max(1,min(10000,(int)$request->query->get('page',1)));
         $limit=max(1,min(100,(int)$request->query->get('limit',30)));
         $q=trim((string)$request->query->get('q',''));
         if (mb_strlen($q)>100) return new JsonResponse(['error'=>'Search too long'],422);
         // Search whole episode table, not only the current page.
-        $where="kind='episode' AND active=TRUE AND name ~* 'S[0-9]{1,2}[[:space:]._-]*E[0-9]{1,3}'";
-        $params=[];
+        $maria=str_contains((string)($this->db->getParams()['driver']??''),'mysql');
+        $pattern=$maria ? "name REGEXP 'S[0-9]{1,2}[[:space:]._-]*E[0-9]{1,3}'" : "name ~* 'S[0-9]{1,2}[[:space:]._-]*E[0-9]{1,3}'";
+        $where="kind='episode' AND active=TRUE AND ".$pattern." AND EXISTS (SELECT 1 FROM user_source_access usa WHERE usa.source_id=channels.source_id AND usa.user_id=?)";
+        $params=[$user];
         if ($q!=='') {
-            $where.=" AND name ILIKE ?";
+            $where.=$maria ? " AND LOCATE(LOWER(?),LOWER(name))>0" : " AND POSITION(LOWER(?) IN LOWER(name))>0";
             $params[]='%'.str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$q).'%';
         }
         $rows=$this->db->fetchAllAssociative(
