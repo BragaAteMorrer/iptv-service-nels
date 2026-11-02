@@ -118,6 +118,25 @@
       else notice('Code incorrect ou expiré.');
     }catch(_){notice('Connexion indisponible.');}finally{pairSubmit.disabled=false;}
   });
+  document.getElementById('load-catalogue').addEventListener('click',async()=>{
+    const button=document.getElementById('load-catalogue');
+    const status=document.getElementById('catalogue-status');
+    const items=document.getElementById('catalogue-items');
+    button.disabled=true;status.textContent='Chargement…';items.replaceChildren();
+    try {
+      const kind=document.getElementById('kind').value;
+      const response=await call('/api/v1/me/library?kind='+encodeURIComponent(kind)+'&limit=30',{method:'GET'});
+      if(response.status===401){status.textContent='Session expirée : reconnectez-vous.';return;}
+      if(response.status!==200 || !Array.isArray(response.body.items)){status.textContent='Catalogue indisponible pour le moment.';return;}
+      status.textContent=String(response.body.total||0)+' contenu(s) accessibles.';
+      for(const entry of response.body.items){
+        const li=document.createElement('li');
+        li.textContent=String(entry.name||'Sans titre');
+        items.append(li);
+      }
+    }catch(_){status.textContent='Impossible de charger le catalogue.';}
+    finally{button.disabled=false;}
+  });
   document.getElementById('logout').addEventListener('click',async()=>{
     try{if(token)await call('/api/identity/logout',{method:'POST'});}catch(_){}
     token=null;session.style.display='none';identity.style.display='block';devices.replaceChildren();notice('Vous êtes déconnecté.',true);
