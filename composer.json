@@ -12,11 +12,24 @@
     "symfony/console": "^7.3",
     "symfony/yaml": "^7.3",
     "symfony/http-client": "^7.3",
-    "doctrine/dbal": "^4.3"
+    "doctrine/dbal": "^4.3",
+    "symfony/http-foundation": "^7.4",
+    "symfony/http-kernel": "^7.4",
+    "symfony/routing": "^7.4",
+    "symfony/dependency-injection": "^7.4",
+    "symfony/config": "^7.4",
+    "symfony/cache": "^7.4",
+    "symfony/event-dispatcher": "^7.4",
+    "symfony/filesystem": "^7.4",
+    "symfony/finder": "^7.4",
+    "symfony/error-handler": "^7.4",
+    "symfony/var-dumper": "^7.4",
+    "symfony/var-exporter": "^7.4"
   },
   "autoload": {
     "psr-4": {
       "IptvService\\": "src/"
     }
-  }
+  },
+  "license": "proprietary"
 }
