@@ -10,6 +10,26 @@ require dirname(__DIR__).'/vendor/autoload.php';
 Environment::load(dirname(__DIR__));
 
 $request = Request::createFromGlobals();
+$headers = [
+    'Cache-Control' => 'no-store',
+    'X-Content-Type-Options' => 'nosniff',
+    'Referrer-Policy' => 'no-referrer',
+    'X-Frame-Options' => 'DENY',
+    'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
+];
+foreach ($headers as $name => $value) header($name.': '.$value);
+function denyRequest(int $status, string $message): never {
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error'=>$message], JSON_THROW_ON_ERROR);
+    exit;
+}
+// Only accept HTTPS and the configured public hostname for identity operations.
+$secure = $request->isSecure()
+    || (string)$request->server->get('HTTPS', '') === 'on';
+$expectedHost = 'nsatellite.bragaatemorrer.fr';
+$validHost = strtolower((string)$request->headers->get('host', '')) === $expectedHost;
+
 $path = $request->getPathInfo();
 $health = $path === '/api/health' && $request->getMethod() === 'GET';
 $identityRoutes = [
@@ -31,6 +51,21 @@ if (!$health && !$identity && !$revokeDevice) {
     header('X-Content-Type-Options: nosniff');
     echo '{"error":"Not found"}';
     exit;
+}
+if (!$health && (!$secure || !$validHost)) {
+    denyRequest(403, 'HTTPS and valid hostname required');
+}
+if (!$health && in_array($request->getMethod(), ['POST', 'DELETE'], true)) {
+    $origin = (string)$request->headers->get('Origin', '');
+    if ($origin !== '' && $origin !== 'https://'.$expectedHost) {
+        denyRequest(403, 'Origin rejected');
+    }
+    if ($request->getMethod() === 'POST') {
+        $type = strtolower(trim(explode(';', (string)$request->headers->get('Content-Type', ''))[0]));
+        if ($type !== 'application/json') denyRequest(415, 'JSON required');
+        $size = $request->headers->get('Content-Length');
+        if ($size !== null && (int)$size > 16384) denyRequest(413, 'Request too large');
+    }
 }
 $environment = $_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: 'prod';
 $debug = ($_SERVER['APP_DEBUG'] ?? getenv('APP_DEBUG') ?: '0') === '1';
