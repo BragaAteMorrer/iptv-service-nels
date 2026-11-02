@@ -5,5 +5,5 @@ services:
   IptvService\:
     resource: '../src/'
     exclude: '../src/{Kernel.php,Import/XtreamClient.php}'
-  Doctrine\\DBAL\\Connection:
-    factory: ['IptvService\\Database\\ConnectionFactory', 'create']
+  Doctrine\DBAL\Connection:
+    factory: ['IptvService\Database\ConnectionFactory', 'create']
