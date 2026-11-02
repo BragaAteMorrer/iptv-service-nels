@@ -41,10 +41,6 @@ final class LineupController {
         if (array_key_exists('channel_number',$data) && $data['channel_number']!==null
             && (!is_int($data['channel_number']) || $data['channel_number']<1 || $data['channel_number']>99999))
             return new JsonResponse(['error'=>'Invalid channel number'],422);
-        $fields=[];$params=[];
-        foreach (['channel_number','favorite','hidden'] as $key) if(array_key_exists($key,$data)){
-            $fields[]=$key.'=EXCLUDED.'.$key;
-        }
         // Use dynamic updates only for validated fixed-column allowlist; do not reset unspecified preferences.
         $this->db->beginTransaction();
         try {
