@@ -2,19 +2,20 @@
 declare(strict_types=1);
 namespace IptvService\Controller;
 use Doctrine\DBAL\Connection;
+use IptvService\Security\ViewerAccess;
 use Doctrine\DBAL\ParameterType;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 final class CatalogController {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly ViewerAccess $viewers) {}
     private function auth(Request $req): bool {
         $token=$_ENV['IPTV_ADMIN_TOKEN'] ?? getenv('IPTV_ADMIN_TOKEN') ?: '';
         return strlen($token)>=24 && hash_equals($token,(string)$req->headers->get('X-Admin-Token',''));
     }
     #[Route('/api/catalog/discover',methods:['GET'])]
     public function discover(Request $req): JsonResponse {
-        if (!$this->auth($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
+        if (!$this->viewers->authorized($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $kind=(string)$req->query->get('kind','live');
         if (!in_array($kind,['live','movie','episode'],true)) return new JsonResponse(['error'=>'Unknown content kind'],422);
         $page=max(1,min(100000,(int)$req->query->get('page',1)));
@@ -34,7 +35,7 @@ final class CatalogController {
     }
     #[Route('/api/catalog/groups',methods:['GET'])]
     public function groups(Request $req): JsonResponse {
-        if (!$this->auth($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
+        if (!$this->viewers->authorized($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $kind=(string)$req->query->get('kind','live');
         if (!in_array($kind,['live','movie','episode'],true)) return new JsonResponse(['error'=>'Unknown content kind'],422);
         $rows=$this->db->fetchAllAssociative('SELECT group_name AS name, COUNT(*) AS total FROM channels WHERE kind=? AND active=TRUE GROUP BY group_name ORDER BY COUNT(*) DESC,group_name LIMIT 500',[$kind]);
@@ -42,7 +43,7 @@ final class CatalogController {
     }
     #[Route('/api/catalog/summary',methods:['GET'])]
     public function summary(Request $req): JsonResponse {
-        if (!$this->auth($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
+        if (!$this->viewers->authorized($req)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $rows=$this->db->fetchAllAssociative('SELECT kind,COUNT(*) AS total FROM channels WHERE active=TRUE GROUP BY kind');
         return new JsonResponse(['items'=>$rows]);
     }
