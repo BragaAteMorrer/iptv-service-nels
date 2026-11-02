@@ -8,6 +8,14 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 final class ImportController {
     public function __construct(private readonly Connection $db,private readonly SecretBox $secrets) {}
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+    private function insertId(string $table, string $sql, array $params): int {
+        if ($this->maria()) {
+            $this->db->executeStatement($sql,$params);
+            return (int)$this->db->lastInsertId();
+        }
+        return (int)$this->db->fetchOne($sql.' RETURNING id',$params);
+    }
     private function allowed(Request $req): bool {
         $token=$_ENV['IPTV_ADMIN_TOKEN'] ?? getenv('IPTV_ADMIN_TOKEN') ?: '';
         return strlen($token)>=24 && hash_equals($token,(string)$req->headers->get('X-Admin-Token',''));
@@ -33,8 +41,8 @@ final class ImportController {
             $path=$dir.'/'.$filename;
             chmod($path,0600);
             $this->db->beginTransaction();
-            $sourceId=(int)$this->db->fetchOne('INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?) RETURNING id',[$name,'m3u',$this->secrets->encrypt(['url'=>'file-upload']),$this->secrets->encrypt([]),'pending']);
-            $jobId=(int)$this->db->fetchOne('INSERT INTO import_jobs(source_id,method,file_path) VALUES (?,?,?) RETURNING id',[$sourceId,'file',$path]);
+            $sourceId=$this->insertId('sources','INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?)',[$name,'m3u',$this->secrets->encrypt(['url'=>'file-upload']),$this->secrets->encrypt([]),'pending']);
+            $jobId=$this->insertId('import_jobs','INSERT INTO import_jobs(source_id,method,file_path) VALUES (?,?,?)',[$sourceId,'file',$path]);
             $this->db->commit();
             return new JsonResponse(['source_id'=>$sourceId,'job_id'=>$jobId,'status'=>'queued'],202);
         } catch(\Throwable $e) {
