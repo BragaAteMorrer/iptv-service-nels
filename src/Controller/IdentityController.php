@@ -22,6 +22,11 @@ final class IdentityController
     }
 
     private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+    private function sqlite(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'sqlite'); }
+    private function expiry(int $minutes): string {
+        if ($this->sqlite()) return "datetime('now', '+".$minutes." minutes')";
+        return $this->maria() ? 'DATE_ADD(NOW(), INTERVAL '.$minutes.' MINUTE)' : "NOW()+INTERVAL '".$minutes." minutes'";
+    }
 
     private function json(Request $r): ?array
     {
@@ -37,7 +42,7 @@ final class IdentityController
     {
         $auth = (string)$r->headers->get('Authorization', '');
         if (!preg_match('/^Bearer ([a-f0-9]{64})$/D', $auth, $m)) return null;
-        $id = $this->db->fetchOne('SELECT user_id FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at > NOW()', [hash('sha256', $m[1])]);
+        $id = $this->db->fetchOne('SELECT user_id FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP', [hash('sha256', $m[1])]);
         return $id === false ? null : (int)$id;
     }
     private function token(): string { return bin2hex(random_bytes(32)); }
@@ -83,7 +88,7 @@ final class IdentityController
             return new JsonResponse(['error'=>'Identifiants invalides'],401);
         }
         $token=$this->token();
-        $this->db->executeStatement($this->maria() ? "INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(NOW(), INTERVAL 7 DAY))" : "INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,NOW()+INTERVAL '7 days')",[(int)$row['id'],hash('sha256',$token)]);
+        $this->db->executeStatement("INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,".$this->expiry(10080).")",[(int)$row['id'],hash('sha256',$token)]);
         return new JsonResponse(['access_token'=>$token,'token_type'=>'Bearer','expires_in'=>604800]);
     }
 
@@ -92,7 +97,7 @@ final class IdentityController
     {
         $auth=(string)$r->headers->get('Authorization','');
         if (!preg_match('/^Bearer ([a-f0-9]{64})$/D',$auth,$m)) return new JsonResponse(['error'=>'Unauthorized'],401);
-        $this->db->executeStatement('UPDATE app_sessions SET revoked_at=NOW() WHERE token_hash=?',[hash('sha256',$m[1])]);
+        $this->db->executeStatement('UPDATE app_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE token_hash=?',[hash('sha256',$m[1])]);
         return new JsonResponse(['ok'=>true]);
     }
 
@@ -108,11 +113,11 @@ final class IdentityController
         $pairingId=$this->token();
         $code=(string)random_int(100000,999999);
         $hash=hash('sha256',$code);
-        $this->db->executeStatement("DELETE FROM app_devices WHERE user_id IS NULL AND pairing_expires_at < NOW()");
+        $this->db->executeStatement("DELETE FROM app_devices WHERE user_id IS NULL AND pairing_expires_at < CURRENT_TIMESTAMP");
         for ($i=0;$i<5;$i++) {
             if ($i>0) { $code=(string)random_int(100000,999999); $hash=hash('sha256',$code); }
             try {
-                $this->db->executeStatement($this->maria() ? "INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,DATE_ADD(NOW(), INTERVAL 5 MINUTE))" : "INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,NOW()+INTERVAL '5 minutes')",[$name,hash('sha256',$pairingId),$hash]);
+                $this->db->executeStatement("INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,".$this->expiry(5).")",[$name,hash('sha256',$pairingId),$hash]);
                 return new JsonResponse(['pairing_id'=>$pairingId,'code'=>$code,'expires_in'=>300],201);
             } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) { /* retry collision */ }
         }
@@ -127,7 +132,7 @@ final class IdentityController
         if (!$this->limiter->allow($r,'pair-approve',(string)$user,10,900)) return $this->throttled();
         $code=(string)(($this->json($r)??[])['code']??'');
         if (!preg_match('/^\d{6}$/D',$code)) return new JsonResponse(['error'=>'Code invalide'],422);
-        $changed=$this->db->executeStatement("UPDATE app_devices SET user_id=?,paired_at=NOW(),pairing_code_hash=NULL,pairing_expires_at=NULL WHERE pairing_code_hash=? AND user_id IS NULL AND pairing_expires_at > NOW()",[$user,hash('sha256',$code)]);
+        $changed=$this->db->executeStatement("UPDATE app_devices SET user_id=?,paired_at=CURRENT_TIMESTAMP,pairing_code_hash=NULL,pairing_expires_at=NULL WHERE pairing_code_hash=? AND user_id IS NULL AND pairing_expires_at > CURRENT_TIMESTAMP",[$user,hash('sha256',$code)]);
         return $changed===1 ? new JsonResponse(['approved'=>true]) : new JsonResponse(['error'=>'Code expiré ou incorrect'],404);
     }
 
@@ -146,7 +151,7 @@ final class IdentityController
         // First successful claim rotates the pre-pair secret to a fresh device
         // bearer token. Compare-and-swap prevents multiple claims.
         $token=$this->token();
-        $count=$this->db->executeStatement('UPDATE app_devices SET device_token_hash=?,last_seen_at=NOW() WHERE id=? AND device_token_hash=?',[
+        $count=$this->db->executeStatement('UPDATE app_devices SET device_token_hash=?,last_seen_at=CURRENT_TIMESTAMP WHERE id=? AND device_token_hash=?',[
             hash('sha256',$token),(int)$row['id'],hash('sha256',$id)
         ]);
         if ($count!==1) return new JsonResponse(['error'=>'Association déjà récupérée'],409);
