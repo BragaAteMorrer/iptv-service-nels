@@ -152,7 +152,18 @@ final class PlaybackController
             }
             return new JsonResponse(['url' => '/api/playback/relay?ticket=' . rawurlencode($this->ticket($finalUrl, (int)$row['source_id'])), 'expires_in' => 900]);
         } catch (\Throwable $e) {
-            return new JsonResponse(['error' => 'Lecture indisponible : vérifie le serveur et les autorisations réseau'], 422);
+            // Errors must not reveal upstream URLs, credentials, or tokens.
+            $reason = $e->getMessage();
+            $label = match (true) {
+                str_contains($reason, 'IPTV_TRUSTED_HOSTS') => 'Redirection vers un domaine absent de IPTV_TRUSTED_HOSTS. Autorise uniquement un domaine de confiance.',
+                str_contains($reason, 'private, reserved') || str_contains($reason, 'public DNS') => 'Destination de redirection bloquée : adresse privée ou réservée.',
+                str_contains($reason, 'resolve') || str_contains($reason, 'DNS') => 'Impossible de résoudre le domaine du serveur de diffusion.',
+                str_contains($reason, 'redirect') => 'Redirection du fournisseur invalide ou trop longue.',
+                str_contains($reason, 'timed out') || str_contains($reason, 'Timeout') => 'Le fournisseur ne répond pas assez vite.',
+                default => 'Impossible de contacter le serveur de diffusion. Consulte les journaux serveur.',
+            };
+            error_log('Playback session failed: ' . get_class($e));
+            return new JsonResponse(['error' => $label], 422);
         }
     }
 
