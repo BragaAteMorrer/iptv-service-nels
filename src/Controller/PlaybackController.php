@@ -58,7 +58,7 @@ final class PlaybackController
     private function fetchTrusted(string $url, int $timeout): array
     {
         for ($hop = 0; $hop <= 3; $hop++) {
-            $options = $this->trusted->requestOptions($url);
+            $options = $this->trusted->requestOptions($url, $hop > 0);
             $response = $this->http->request('GET', $url, array_replace($options, ['timeout' => $timeout]));
             $status = $response->getStatusCode();
             if (!in_array($status, [301, 302, 303, 307, 308], true)) {
@@ -89,7 +89,7 @@ final class PlaybackController
             }
             // Validation is repeated before every new outbound request, including
             // DNS pinning and exact hostname allowlist checks.
-            $this->trusted->requestOptions($location);
+            $this->trusted->requestOptions($location, true);
             $url = $location;
         }
         throw new \RuntimeException('Too many provider redirects');
@@ -163,7 +163,8 @@ final class PlaybackController
             $label = match (true) {
                 str_contains($reason, 'IPTV_TRUSTED_HOSTS') => 'Redirection vers un domaine absent de IPTV_TRUSTED_HOSTS. Autorise uniquement un domaine de confiance.',
                 str_contains($reason, 'private, reserved') => 'Destination bloquée : ' . (preg_match('/\\[(ipv[46]_[a-z_]+|invalid_address)\\]/', $reason, $m) ? $m[1] : 'adresse privée ou réservée') . '. Aucune connexion n’a été effectuée.',
-                str_contains($reason, 'public DNS') => 'Le serveur cible ne possède pas de nom DNS public autorisé.',
+                str_contains($reason, 'public DNS') => 'La destination ne possède pas de nom DNS public valide.',
+                str_contains($reason, 'Direct IP requires') => 'Une adresse IP directe a été refusée hors redirection validée.',
                 str_contains($reason, 'resolve') || str_contains($reason, 'DNS') => 'Impossible de résoudre le domaine du serveur de diffusion.',
                 str_contains($reason, 'redirect') => 'Redirection du fournisseur invalide ou trop longue.',
                 str_contains($reason, 'timed out') || str_contains($reason, 'Timeout') => 'Le fournisseur ne répond pas assez vite.',
@@ -255,7 +256,7 @@ final class PlaybackController
             }
         }
         // Revalidate every referenced hostname and pin its resolved address when requested.
-        $this->trusted->requestOptions($target);
+        $this->trusted->requestOptions($target, true);
         return '/api/playback/relay?ticket=' . rawurlencode($this->ticket($target, $sourceId));
     }
 }
