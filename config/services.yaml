@@ -8,4 +8,11 @@ services:
   Doctrine\DBAL\Connection:
     factory: ['Doctrine\DBAL\DriverManager', 'getConnection']
     arguments:
-      - { driver: 'pdo_pgsql', url: '%env(DATABASE_URL)%' }
+      -
+        driver: 'pdo_pgsql'
+        host: 'database'
+        port: 5432
+        dbname: 'iptv'
+        user: 'iptv'
+        password: 'iptv'
+        charset: 'utf8'
