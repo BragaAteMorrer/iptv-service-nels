@@ -34,8 +34,10 @@ final class CheckDatabaseCommand extends Command
             $output->writeln('Tables detected: '.count($tableNames));
             $output->writeln('Database connection OK; no migrations were executed.');
             return Command::SUCCESS;
-        } catch (\Throwable) {
-            $output->writeln('<error>Database check failed. Verify DATABASE_URL, user privileges and connectivity; secrets are not printed.</error>');
+        } catch (\Throwable $e) {
+            $output->writeln('<error>Database check failed ('.get_class($e).').</error>');
+            $output->writeln('<comment>SQLSTATE: '.($e instanceof \Doctrine\DBAL\Exception\DriverException ? ($e->getSQLState() ?? 'unknown') : 'not available').'</comment>');
+            $output->writeln('<comment>Check DATABASE_URL, database privileges and driver. Connection strings are never printed.</comment>');
             return Command::FAILURE;
         }
     }
