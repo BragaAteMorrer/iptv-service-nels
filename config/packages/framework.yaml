@@ -1,0 +1,6 @@
+framework:
+  secret: '%kernel.secret%'
+  router:
+    utf8: true
+  http_method_override: false
+  handle_all_throwables: true
