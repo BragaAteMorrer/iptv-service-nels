@@ -25,7 +25,7 @@ final class TrustedProviderEndpoint
         return 'invalid_address';
     }
 
-    public function requestOptions(string $url): array
+    public function requestOptions(string $url, bool $allowPublicIp = false): array
     {
         $parts = parse_url($url);
         if (!is_array($parts)) {
@@ -37,8 +37,17 @@ final class TrustedProviderEndpoint
             || isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])) {
             throw new \RuntimeException('Provider endpoint must be an HTTP(S) URL without embedded credentials or fragments');
         }
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false
-            || !preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$/D', $host)
+        $literalIp = filter_var($host, FILTER_VALIDATE_IP) !== false;
+        if ($literalIp) {
+            if (!$allowPublicIp) {
+                throw new \RuntimeException('Direct IP requires a validated playback redirect');
+            }
+            if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                throw new \RuntimeException('Provider hostname resolves to a private, reserved or invalid IP address [' . $this->addressCategory($host) . ']');
+            }
+            return ['max_redirects' => 0, 'timeout' => 45];
+        }
+        if (!preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z][a-z0-9-]{1,62}$/D', $host)
             || str_ends_with($host, '.local') || str_ends_with($host, '.internal')) {
             throw new \RuntimeException('Only approved public DNS hostnames are allowed');
         }
