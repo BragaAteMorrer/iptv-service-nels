@@ -28,7 +28,7 @@ async function playChannel(channel){
   const video=$('video');
   if(window.Hls&&Hls.isSupported()){
    hls=new Hls({maxBufferLength:20,backBufferLength:10});
-   hls.on(Hls.Events.ERROR,(_,error)=>{if(error.fatal&&ticket===requestId){const code=error.response?.code;const detail=code?'HTTP '+code+' · ':'';$('status').textContent='Erreur HLS : '+detail+error.details+' (flux ou codec incompatible)';}});
+   hls.on(Hls.Events.ERROR,(_,error)=>{if(error.fatal&&ticket===requestId){const code=error.response?.code;const detail=code?'HTTP '+code+' · ':'';$('status').textContent='Échec du chargement HLS : '+detail+error.details+'. Vérifie le format disponible auprès du fournisseur.';}});
    hls.on(Hls.Events.MANIFEST_PARSED,async()=>{if(ticket===requestId){try{await video.play();}catch{$('status').textContent='Clique sur Lecture pour démarrer';}}});
    hls.loadSource(data.url);hls.attachMedia(video);
   }else if(video.canPlayType('application/vnd.apple.mpegurl')){
