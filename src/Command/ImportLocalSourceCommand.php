@@ -51,7 +51,9 @@ final class ImportLocalSourceCommand extends Command
         }
         $io->writeln('Source name: '.$name);
         $io->writeln('File size: '.$size.' bytes');
-        if (!$io->confirm('Queue this playlist for import?', false)) return Command::SUCCESS;
+        // This SSH-only command already requires explicit file and source arguments.
+        // Avoid silent no-op when terminal confirmation is not recognized.
+        $io->writeln('Preparing local import…');
         $root = dirname(__DIR__, 2);
         $dir = $root.'/var/imports';
         $destination = null;
@@ -74,6 +76,9 @@ final class ImportLocalSourceCommand extends Command
             }
             $this->db->insert('import_jobs', ['source_id'=>$sourceId, 'method'=>'file', 'file_path'=>$destination, 'status'=>'queued']);
             $this->db->commit();
+            if ((int)$this->db->fetchOne('SELECT COUNT(*) FROM sources WHERE id=?', [$sourceId]) !== 1) {
+                throw new \RuntimeException('Created source could not be verified.');
+            }
             $io->success('Source #'.$sourceId.' created. Import is queued; a separate worker must process it.');
             return Command::SUCCESS;
         } catch (\Throwable $e) {
