@@ -3,21 +3,7 @@ services:
     build: .
     ports:
       - "127.0.0.1:8080:8080"
-    environment:
-      APP_ENV: dev
-      APP_DEBUG: "1"
-      APP_SECRET: "${APP_SECRET}"
-      DATABASE_URL: "postgresql://iptv:iptv@database:5432/iptv?charset=utf8"
-      IPTV_ADMIN_TOKEN: "${IPTV_ADMIN_TOKEN}"
-      IPTV_SECRET_KEY: "${IPTV_SECRET_KEY}"
-      IPTV_TRUSTED_HOSTS: "${IPTV_TRUSTED_HOSTS:-}"
-    volumes:
-      - private_imports:/app/var/imports
-    depends_on:
-      worker:
-    build: .
-    command: ["sh", "-c", "while true; do php bin/console iptv:jobs:run || true; sleep 5; done"]
-    environment:
+    environment: &app_env
       APP_ENV: dev
       APP_DEBUG: "1"
       APP_SECRET: "${APP_SECRET}"
@@ -30,7 +16,14 @@ services:
     depends_on:
       database:
         condition: service_healthy
-  database:
+  worker:
+    build: .
+    command: ["sh", "-c", "while true; do php bin/console iptv:jobs:run || true; sleep 5; done"]
+    environment: *app_env
+    volumes:
+      - private_imports:/app/var/imports
+    depends_on:
+      database:
         condition: service_healthy
   database:
     image: postgres:16-alpine
@@ -39,7 +32,7 @@ services:
       POSTGRES_PASSWORD: iptv
       POSTGRES_DB: iptv
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U iptv -d iptv"]
+      test: ["CMD-SHELL", "pg_isready -U iptv -d iptv"]
       interval: 3s
       retries: 20
     volumes:
