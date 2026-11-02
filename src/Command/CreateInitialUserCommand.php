@@ -62,7 +62,7 @@ final class CreateInitialUserCommand extends Command
             $locked = false;
             if ($maria) {
                 $locked = (string)$this->db->fetchOne("SELECT GET_LOCK('nels_tv_initial_account', 2)") === '1';
-                if (!$locked) throw new \\RuntimeException('Account setup is already running.');
+                if (!$locked) throw new \RuntimeException('Account setup is already running.');
             }
             try {
                 $this->db->beginTransaction();
@@ -80,6 +80,8 @@ final class CreateInitialUserCommand extends Command
             } catch (\Throwable $e) {
                 if ($this->db->isTransactionActive()) $this->db->rollBack();
                 throw $e;
+            } finally {
+                if ($locked) $this->db->executeStatement("SELECT RELEASE_LOCK('nels_tv_initial_account')");
             }
             $io->success('Initial Nels TV account created. No API routes were opened.');
             return Command::SUCCESS;
