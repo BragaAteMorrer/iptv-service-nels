@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\ViewerAccess;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -23,6 +24,7 @@ final class PlaybackController
         private readonly Connection $db,
         private readonly SecretBox $box,
         private readonly TrustedProviderEndpoint $trusted,
+        private readonly ViewerAccess $viewers,
     ) {
         // Private playback client: never pass provider URLs containing subscriber
         // credentials to Symfony's request/response logging decorator.
@@ -98,8 +100,7 @@ final class PlaybackController
     #[Route('/api/playback/channel/{id<\d+>}/session', methods: ['POST'])]
     public function session(Request $request, int $id): JsonResponse
     {
-        $expected = (string) (getenv('IPTV_ADMIN_TOKEN') ?: '');
-        if (strlen($expected) < 24 || !hash_equals($expected, (string)$request->headers->get('X-Admin-Token', ''))) {
+        if (!$this->viewers->authorized($request)) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
         $row = $this->db->fetchAssociative(
