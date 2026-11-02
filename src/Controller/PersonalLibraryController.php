@@ -12,6 +12,8 @@ final class PersonalLibraryController
 {
     public function __construct(private readonly Connection $db) {}
 
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+
     private function user(Request $request): ?int
     {
         $header=(string)$request->headers->get('Authorization','');
@@ -42,7 +44,7 @@ final class PersonalLibraryController
         $params=[$user,$kind];
         if ($group!=='') {$where[]='c.group_name=?';$params[]=$group;}
         if ($q!=='') {
-            $where[]="c.name ILIKE ? ESCAPE '\\'";
+            $where[]=$this->maria() ? "c.name LIKE ? ESCAPE '\\\\'" : "c.name ILIKE ? ESCAPE '\\\\'";
             $escaped=str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$q);
             $params[]='%'.$escaped.'%';
         }
@@ -57,7 +59,7 @@ final class PersonalLibraryController
              FROM channels c ".$join."
              LEFT JOIN user_watch_progress w ON w.user_id=? AND w.source_id=c.source_id AND w.external_id=c.external_id
              WHERE ".$filter."
-             ORDER BY p.channel_number ASC NULLS LAST,c.name ASC,c.id ASC LIMIT ? OFFSET ?",
+             ORDER BY CASE WHEN p.channel_number IS NULL THEN 1 ELSE 0 END ASC,p.channel_number ASC,c.name ASC,c.id ASC LIMIT ? OFFSET ?",
             array_merge([$user,$user],array_slice($params,1),[$limit,($page-1)*$limit])
         );
         return new JsonResponse(['items'=>$items,'total'=>$total,'page'=>$page,'limit'=>$limit,'kind'=>$kind]);
@@ -82,7 +84,7 @@ final class PersonalLibraryController
         }
         $this->db->beginTransaction();
         try {
-            $this->db->executeStatement('INSERT INTO user_channel_preferences(user_id,source_id,external_id) VALUES(?,?,?) ON CONFLICT DO NOTHING',[$user,$channel['source_id'],$channel['external_id']]);
+            $this->db->executeStatement(($this->maria() ? 'INSERT IGNORE INTO user_channel_preferences(user_id,source_id,external_id) VALUES(?,?,?)' : 'INSERT INTO user_channel_preferences(user_id,source_id,external_id) VALUES(?,?,?) ON CONFLICT DO NOTHING'),[$user,$channel['source_id'],$channel['external_id']]);
             foreach (['favorite','hidden','channel_number'] as $key) {
                 if (array_key_exists($key,$data)) {
                     $this->db->executeStatement('UPDATE user_channel_preferences SET '.$key.'=?,updated_at=NOW() WHERE user_id=? AND source_id=? AND external_id=?',[$data[$key],$user,$channel['source_id'],$channel['external_id']]);
@@ -109,8 +111,10 @@ final class PersonalLibraryController
         if (!is_int($position) || $position<0 || $position>604800 || ($duration!==null && (!is_int($duration) || $duration<0 || $duration>604800)) || ($duration!==null && $position>$duration)) {
             return new JsonResponse(['error'=>'Invalid position/duration'],422);
         }
-        $this->db->executeStatement("INSERT INTO user_watch_progress(user_id,source_id,external_id,position_seconds,duration_seconds)
-            VALUES(?,?,?,?,?) ON CONFLICT(user_id,source_id,external_id) DO UPDATE SET position_seconds=EXCLUDED.position_seconds,duration_seconds=EXCLUDED.duration_seconds,updated_at=NOW()",[
+        $sql=$this->maria()
+          ? "INSERT INTO user_watch_progress(user_id,source_id,external_id,position_seconds,duration_seconds) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE position_seconds=VALUES(position_seconds),duration_seconds=VALUES(duration_seconds),updated_at=NOW()"
+          : "INSERT INTO user_watch_progress(user_id,source_id,external_id,position_seconds,duration_seconds) VALUES(?,?,?,?,?) ON CONFLICT(user_id,source_id,external_id) DO UPDATE SET position_seconds=EXCLUDED.position_seconds,duration_seconds=EXCLUDED.duration_seconds,updated_at=NOW()";
+        $this->db->executeStatement($sql,[
             $user,$channel['source_id'],$channel['external_id'],$position,$duration
         ]);
         return new JsonResponse(['updated'=>true]);
