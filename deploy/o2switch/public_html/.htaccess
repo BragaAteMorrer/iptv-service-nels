@@ -9,6 +9,7 @@ DirectoryIndex index.html
     # PHP front controller applies the opt-in environment gate and method allowlist.
     RewriteRule ^api/identity/(?:login|logout)$ index.php [END]
     RewriteRule ^api/devices(?:/pair/(?:start|approve|status)|/[1-9][0-9]*)?$ index.php [END]
+    RewriteRule ^api/v1/me/library$ index.php [END]
     # All other API routes remain closed by default.
     RewriteRule ^api(?:/|$) - [F,END,NC]
     RewriteRule ^(?:index\.php|router\.php)$ - [F,END,NC]
