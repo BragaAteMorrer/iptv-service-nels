@@ -4,6 +4,7 @@ namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
 use IptvService\Security\ViewerAccess;
+use IptvService\Security\SourceAccess;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,6 +26,7 @@ final class PlaybackController
         private readonly SecretBox $box,
         private readonly TrustedProviderEndpoint $trusted,
         private readonly ViewerAccess $viewers,
+        private readonly SourceAccess $sources,
     ) {
         // Private playback client: never pass provider URLs containing subscriber
         // credentials to Symfony's request/response logging decorator.
@@ -32,6 +34,14 @@ final class PlaybackController
     }
 
     private readonly HttpClientInterface $http;
+
+    /** Relay is restricted to local development, regardless of Apache configuration. */
+    private function relayEnabled(): bool
+    {
+        return (($_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: 'prod') === 'dev')
+            && (($_SERVER['IPTV_ENABLE_LOCAL_RELAY'] ?? getenv('IPTV_ENABLE_LOCAL_RELAY') ?: '') === '1');
+    }
+
 
     private function ticket(string $url, int $sourceId): string
     {
@@ -100,6 +110,7 @@ final class PlaybackController
     #[Route('/api/playback/channel/{id<\d+>}/session', methods: ['POST'])]
     public function session(Request $request, int $id): JsonResponse
     {
+        if (!$this->relayEnabled()) return new JsonResponse(['error'=>'Playback unavailable'],403);
         if (!$this->viewers->authorized($request)) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
@@ -109,6 +120,11 @@ final class PlaybackController
              WHERE c.id=? AND c.active=TRUE AND c.kind='live'", [$id]
         );
         if (!$row) return new JsonResponse(['error' => 'Chaîne introuvable'], 404);
+        if (!$this->viewers->isAdmin($request)) {
+            $user=$this->viewers->userId($request);
+            if ($user===null || !$this->sources->allows($user,(int)$row['source_id']))
+                return new JsonResponse(['error'=>'Chaîne introuvable'],404);
+        }
 
         try {
             if ($row['source_kind'] === 'xtream') {
@@ -179,6 +195,7 @@ final class PlaybackController
     #[Route('/api/playback/relay', methods: ['GET'])]
     public function relay(Request $request): Response
     {
+        if (!$this->relayEnabled()) return new Response('Playback unavailable',403);
         try {
             $ticket = $this->openTicket((string)$request->query->get('ticket', ''));
             $url = $ticket['url'];
