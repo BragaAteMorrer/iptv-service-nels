@@ -6,6 +6,7 @@ use Doctrine\DBAL\Connection;
 use IptvService\Import\M3uParser;
 use IptvService\Catalog\ContentClassifier;
 use IptvService\Security\SecretBox;
+use IptvService\Security\TrustedProviderEndpoint;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -20,28 +21,17 @@ final class SyncSourceCommand extends Command {
         private readonly SecretBox $secrets,
         private readonly HttpClientInterface $http,
         private readonly M3uParser $parser,
-        private readonly ContentClassifier $classifier
+        private readonly ContentClassifier $classifier,
+        private readonly TrustedProviderEndpoint $trustedEndpoint
     ) {parent::__construct();}
 
     protected function configure(): void {
         $this->addArgument('source-id',InputArgument::REQUIRED,'Registered source ID');
     }
 
-    private function trustedUrl(string $url): void {
-        $parts=parse_url($url);
-        if (!$parts || strtolower((string)($parts['scheme']??''))!=='https' || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
-            throw new \RuntimeException('Only HTTPS endpoints without embedded credentials are allowed');
-        }
-        $host=strtolower(rtrim((string)$parts['host'],'.'));
-        $allow=array_filter(array_map('trim',explode(',',strtolower($_ENV['IPTV_TRUSTED_HOSTS']??getenv('IPTV_TRUSTED_HOSTS')?:''))));
-        if (!in_array($host,$allow,true)) {
-            throw new \RuntimeException('Host not explicitly approved in IPTV_TRUSTED_HOSTS');
-        }
-    }
-
     private function fetchJson(string $url,array $query): array {
-        $this->trustedUrl($url);
-        $response=$this->http->request('GET',$url,['query'=>$query,'max_redirects'=>0,'timeout'=>45]);
+        $options=$this->trustedEndpoint->requestOptions($url);
+        $response=$this->http->request('GET',$url,$options+['query'=>$query]);
         if ($response->getStatusCode()!==200) throw new \RuntimeException('Provider request failed');
         $data=$response->toArray();
         if (!is_array($data)) throw new \RuntimeException('Unexpected provider response');
@@ -60,11 +50,11 @@ final class SyncSourceCommand extends Command {
         $count=0;
         try {
             $url=$this->secrets->decrypt($source['endpoint'])['url'];
-            $this->trustedUrl($url);
+            $downloadOptions=$this->trustedEndpoint->requestOptions($source['kind']==='m3u' ? $url : rtrim($url,'/').'/player_api.php');
             $credentials=$this->secrets->decrypt($source['credentials']);
             $this->db->executeStatement("UPDATE sources SET status='syncing' WHERE id=?",[$id]);
             if ($source['kind']==='m3u') {
-                $response=$this->http->request('GET',$url,['max_redirects'=>0,'timeout'=>90]);
+                $response=$this->http->request('GET',$url,$downloadOptions+['timeout'=>90]);
                 if ($response->getStatusCode()!==200) throw new \RuntimeException('Playlist request failed');
                 $stream=tmpfile();
                 if ($stream===false) throw new \RuntimeException('Could not create temporary file');
