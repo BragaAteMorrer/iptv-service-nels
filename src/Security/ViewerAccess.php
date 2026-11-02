@@ -22,7 +22,7 @@ final class ViewerAccess
         if (!preg_match('/^Bearer ([a-f0-9]{64})$/D',$auth,$m)) return null;
         $hash=hash('sha256',$m[1]);
         $user=$this->db->fetchOne(
-            'SELECT user_id FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at>NOW()',
+            'SELECT user_id FROM app_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at>CURRENT_TIMESTAMP',
             [$hash]
         );
         if ($user!==false) return (int)$user;
