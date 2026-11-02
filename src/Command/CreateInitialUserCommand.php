@@ -58,10 +58,16 @@ final class CreateInitialUserCommand extends Command
             }
             $hash = password_hash($password, PASSWORD_DEFAULT);
             unset($password, $repeated);
-            $this->db->beginTransaction();
+            $maria = str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql');
+            $locked = false;
+            if ($maria) {
+                $locked = (string)$this->db->fetchOne("SELECT GET_LOCK('nels_tv_initial_account', 2)") === '1';
+                if (!$locked) throw new \\RuntimeException('Account setup is already running.');
+            }
             try {
-                // Lock user table during first-account creation to prevent two simultaneous
-                // CLI invocations from both creating the initial account.
+                $this->db->beginTransaction();
+                if (!$maria) $this->db->executeStatement('SELECT pg_advisory_xact_lock(83462431)');
+                // Serialize initial-account creation using a DB advisory lock.
                 $this->db->executeStatement(
                     'INSERT INTO app_users(email,password_hash) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM app_users)',
                     [$email, $hash]
