@@ -33,10 +33,8 @@ final class ImportController {
             $path=$dir.'/'.$filename;
             chmod($path,0600);
             $this->db->beginTransaction();
-            $this->db->insert('sources',['name'=>$name,'kind'=>'m3u','endpoint'=>$this->secrets->encrypt(['url'=>'file-upload']),'credentials'=>$this->secrets->encrypt([]),'status'=>'pending']);
-            $sourceId=(int)$this->db->lastInsertId();
-            $this->db->insert('import_jobs',['source_id'=>$sourceId,'method'=>'file','file_path'=>$path]);
-            $jobId=(int)$this->db->lastInsertId();
+            $sourceId=(int)$this->db->fetchOne('INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?) RETURNING id',[$name,'m3u',$this->secrets->encrypt(['url'=>'file-upload']),$this->secrets->encrypt([]),'pending']);
+            $jobId=(int)$this->db->fetchOne('INSERT INTO import_jobs(source_id,method,file_path) VALUES (?,?,?) RETURNING id',[$sourceId,'file',$path]);
             $this->db->commit();
             return new JsonResponse(['source_id'=>$sourceId,'job_id'=>$jobId,'status'=>'queued'],202);
         } catch(\Throwable $e) {
