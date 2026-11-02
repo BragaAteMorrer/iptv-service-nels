@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nels TV — Sources</title><style>
+:root{font-family:system-ui;color:#eaf2fc;background:#101827}*{box-sizing:border-box}
+body{max-width:1000px;margin:48px auto;padding:0 24px}h1{font-size:30px}
+p{color:#a8b6c8}.layout{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+section{background:#1c293c;border:1px solid #34455f;border-radius:18px;padding:24px}
+label{display:block;font-size:13px;margin:14px 0 6px;color:#d4e2f2}
+input,select{width:100%;padding:12px;background:#111b2a;border:1px solid #455570;border-radius:8px;color:white}
+button{background:#36b5bf;border:0;border-radius:8px;padding:12px 17px;font-weight:700;cursor:pointer;margin-top:20px}
+small{color:#a8b6c8}.item{border-bottom:1px solid #34455f;padding:15px 0}
+.msg{min-height:22px;margin-top:15px} @media(max-width:720px){.layout{grid-template-columns:1fr}}
+</style></head><body>
+<h1>Nels TV <span style="color:#36b5bf">/ Sources</span></h1><p>Administration des sources IPTV autorisées. Les secrets restent côté serveur.</p>
+<label for="token">Jeton d'administration (conservé uniquement en mémoire sur cette page)</label><input id="token" type="password" autocomplete="off" placeholder="IPTV_ADMIN_TOKEN">
+<div class="layout"><section><h2>Ajouter une source</h2><form id="create">
+<label for="name">Nom</label><input id="name" required maxlength="150" placeholder="Mon bouquet">
+<label for="kind">Mode d'import</label><select id="kind"><option value="m3u">M3U / M3U8</option><option value="xtream">Xtream Codes</option><option value="mag">MAG / MAC</option></select>
+<label for="endpoint">URL serveur ou playlist</label><input id="endpoint" required type="url" placeholder="https://...">
+<div id="xtream" hidden><label for="username">Identifiant</label><input id="username"><label for="password">Mot de passe</label><input id="password" type="password"></div>
+<div id="mag" hidden><label for="mac">MAC autorisée</label><input id="mac" placeholder="00:1A:79:XX:XX:XX"></div>
+<button type="submit">Enregistrer la source</button><div class="msg" id="msg" role="status"></div></form>
+</section><section><h2>Sources enregistrées</h2><button id="refresh" type="button">Actualiser</button><div id="sources"><small>Saisis le jeton puis actualise.</small></div></section></div>
+<p><small>Cette étape enregistre les sources. L'import M3U local est disponible en CLI. La synchronisation à distance et les portails MAG nécessitent encore leurs connecteurs.</small></p>
+<script>
+const $=id=>document.getElementById(id);
+function toggle(){ $('xtream').hidden=$('kind').value!=='xtream';$('mag').hidden=$('kind').value!=='mag'; }
+$('kind').addEventListener('change',toggle);
+async function api(method,path,data){
+ const res=await fetch('/api/'+path,{method,headers:{'X-Admin-Token':$('token').value,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});
+ const json=await res.json();if(!res.ok)throw new Error(json.error||'Erreur serveur');return json;
+}
+async function refresh(){
+ $('sources').textContent='Chargement…';
+ try{const rows=await api('GET','sources');$('sources').replaceChildren();
+ for(const item of rows){const el=document.createElement('div');el.className='item';const title=document.createElement('strong');title.textContent=item.name;const details=document.createElement('p');details.textContent=item.kind.toUpperCase()+' · '+item.status+' · #'+item.id;el.append(title,details);$('sources').append(el);}
+ if(rows.length===0)$('sources').textContent='Aucune source.';
+ }catch(e){$('sources').textContent=e.message;}
+}
+$('refresh').addEventListener('click',refresh);
+$('create').addEventListener('submit',async e=>{
+ e.preventDefault();$('msg').textContent='';
+ const payload={name:$('name').value,kind:$('kind').value,endpoint:$('endpoint').value};
+ if(payload.kind==='xtream'){payload.username=$('username').value;payload.password=$('password').value;}
+ if(payload.kind==='mag'){payload.mac=$('mac').value;}
+ try{await api('POST','sources',payload);$('msg').textContent='Source enregistrée.';$('create').reset();toggle();await refresh();}
+ catch(err){$('msg').textContent=err.message;}
+});
+</script></body></html>

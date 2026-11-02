@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+use IptvService\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+require dirname(__DIR__).'/vendor/autoload.php';
+$kernel = new Kernel($_SERVER['APP_ENV'] ?? 'dev', ($_SERVER['APP_DEBUG'] ?? '1') !== '0');
+$application = new Application($kernel);
+$application->run();
