@@ -8,6 +8,9 @@ import android.view.KeyEvent
 import android.view.View
 import android.widget.*
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import org.json.JSONObject
@@ -17,7 +20,7 @@ import java.util.concurrent.Executors
 
 /** TV prototype: no credentials persisted, pair to a local Nels TV API. */
 class MainActivity : Activity() {
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newFixedThreadPool(3)
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var root: LinearLayout
     private lateinit var playerView: PlayerView
@@ -28,6 +31,7 @@ class MainActivity : Activity() {
     private var pairId: String? = null
     private var channels = mutableListOf<Pair<Long, String>>()
     private var index = 0
+    @Volatile private var tuneGeneration = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +43,7 @@ class MainActivity : Activity() {
         playerView = PlayerView(this).apply { visibility=View.GONE; useController=true }
         root.addView(playerView, LinearLayout.LayoutParams(-1,0,1f))
         val address = EditText(this).apply {
-            hint="URL du serveur (ex. http://192.168.1.10:8080)"
+            hint="URL du serveur (HTTPS ou réseau privé)"
             setSingleLine()
             inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
         }
@@ -50,6 +54,11 @@ class MainActivity : Activity() {
             val proposed=address.text.toString().trim().trimEnd('/')
             if (!(proposed.startsWith("http://") || proposed.startsWith("https://"))) {
                 message.text="Adresse HTTP(S) invalide"; return@setOnClickListener
+            }
+            val uri=android.net.Uri.parse(proposed)
+            val host=uri.host ?: ""
+            if (uri.scheme=="http" && !(host=="localhost" || host=="10.0.2.2" || host.startsWith("192.168.") || host.startsWith("10.") || Regex("172\\.(1[6-9]|2[0-9]|3[01])\\..*").matches(host))) {
+                message.text="HTTP réservé au réseau local. Utilise HTTPS pour un serveur distant."; return@setOnClickListener
             }
             apiBase=proposed
             address.visibility=View.GONE
@@ -88,7 +97,7 @@ class MainActivity : Activity() {
     private fun pollPair(id:String) {
         executor.execute {
             try {
-                repeat(30) {
+                repeat(60) {
                     if (pairId!=id) return@execute
                     val result=call("POST","/api/devices/pair/status",JSONObject().put("pairing_id",id))
                     if(result.optString("status")=="paired") {
@@ -124,17 +133,23 @@ class MainActivity : Activity() {
         if(channels.isEmpty()) return
         index=(index+step+channels.size)%channels.size
         val channel=channels[index]
+        val generation=++tuneGeneration
         message.text="${index+1} · ${channel.second}"
         execute {
             val data=call("POST","/api/playback/channel/${channel.first}/session",JSONObject(),true)
             val url=apiBase+data.getString("url")
             ui.post {
-                if(channels.getOrNull(index)?.first!=channel.first) return@post
+                if(generation!=tuneGeneration || isFinishing || isDestroyed) return@post
                 player?.release()
                 player=ExoPlayer.Builder(this).build().also {
                     playerView.player=it
                     playerView.visibility=View.VISIBLE
-                    it.setMediaItem(MediaItem.fromUri(url))
+                    it.addListener(object : Player.Listener {
+                        override fun onPlayerError(error: PlaybackException) {
+                            message.text="Lecture impossible : " + (error.message ?: "format non pris en charge")
+                        }
+                    })
+                    it.setMediaItem(MediaItem.Builder().setUri(url).setMimeType(MimeTypes.APPLICATION_M3U8).build())
                     it.prepare()
                     it.play()
                 }
@@ -155,6 +170,7 @@ class MainActivity : Activity() {
     }
     override fun onDestroy() {
         pairId=null
+        tuneGeneration++
         player?.release()
         executor.shutdownNow()
         super.onDestroy()
