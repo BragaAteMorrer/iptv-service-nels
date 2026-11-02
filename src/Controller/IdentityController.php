@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\RequestRateLimiter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -13,7 +14,12 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final class IdentityController
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly RequestRateLimiter $limiter) {}
+
+    private function throttled(): JsonResponse
+    {
+        return new JsonResponse(['error'=>'Too many requests'],429,['Retry-After'=>'900','Cache-Control'=>'no-store']);
+    }
 
     private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
 
@@ -39,6 +45,7 @@ final class IdentityController
     #[Route('/api/identity/bootstrap', methods: ['POST'])]
     public function bootstrap(Request $r): JsonResponse
     {
+        if (!$this->limiter->allow($r,'bootstrap','global',5,86400)) return $this->throttled();
         if (!$this->admin($r)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $data=$this->json($r);
         $email=strtolower(trim((string)($data['email']??'')));
@@ -68,6 +75,8 @@ final class IdentityController
         $data=$this->json($r);
         $email=strtolower(trim((string)($data['email']??'')));
         $password=(string)($data['password']??'');
+        if (!$this->limiter->allow($r,'login-ip','global',20,900)
+            || !$this->limiter->allow($r,'login-account',hash('sha256',$email),5,900)) return $this->throttled();
         if (strlen($email)>254 || strlen($password)>256) return new JsonResponse(['error'=>'Identifiants invalides'],401);
         $row=$this->db->fetchAssociative('SELECT id,password_hash FROM app_users WHERE email=?',[$email]);
         if (!$row || !password_verify($password,(string)$row['password_hash'])) {
@@ -90,6 +99,7 @@ final class IdentityController
     #[Route('/api/devices/pair/start', methods: ['POST'])]
     public function start(Request $r): JsonResponse
     {
+        if (!$this->limiter->allow($r,'pair-start','global',10,600)) return $this->throttled();
         $data=$this->json($r)??[];
         $name=trim((string)($data['name']??'Nels TV'));
         if ($name==='' || strlen($name)>80) return new JsonResponse(['error'=>'Nom appareil invalide'],422);
@@ -114,6 +124,7 @@ final class IdentityController
     {
         $user=$this->user($r);
         if ($user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
+        if (!$this->limiter->allow($r,'pair-approve',(string)$user,10,900)) return $this->throttled();
         $code=(string)(($this->json($r)??[])['code']??'');
         if (!preg_match('/^\d{6}$/D',$code)) return new JsonResponse(['error'=>'Code invalide'],422);
         $changed=$this->db->executeStatement("UPDATE app_devices SET user_id=?,paired_at=NOW(),pairing_code_hash=NULL,pairing_expires_at=NULL WHERE pairing_code_hash=? AND user_id IS NULL AND pairing_expires_at > NOW()",[$user,hash('sha256',$code)]);
@@ -123,6 +134,7 @@ final class IdentityController
     #[Route('/api/devices/pair/status', methods: ['POST'])]
     public function status(Request $r): JsonResponse
     {
+        if (!$this->limiter->allow($r,'pair-status','global',60,60)) return $this->throttled();
         $id=(string)(($this->json($r)??[])['pairing_id']??'');
         if (!preg_match('/^[a-f0-9]{64}$/D',$id)) return new JsonResponse(['error'=>'Invalid request'],422);
         $row=$this->db->fetchAssociative('SELECT id,user_id,pairing_expires_at,device_name,paired_at FROM app_devices WHERE device_token_hash=?',[hash('sha256',$id)]);
