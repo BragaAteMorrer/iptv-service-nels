@@ -162,7 +162,8 @@ final class PlaybackController
             $reason = $e->getMessage();
             $label = match (true) {
                 str_contains($reason, 'IPTV_TRUSTED_HOSTS') => 'Redirection vers un domaine absent de IPTV_TRUSTED_HOSTS. Autorise uniquement un domaine de confiance.',
-                str_contains($reason, 'private, reserved') || str_contains($reason, 'public DNS') => 'Destination de redirection bloquée : adresse privée ou réservée.',
+                str_contains($reason, 'private, reserved') => 'Destination bloquée : ' . (preg_match('/\\[(ipv[46]_[a-z_]+|invalid_address)\\]/', $reason, $m) ? $m[1] : 'adresse privée ou réservée') . '. Aucune connexion n’a été effectuée.',
+                str_contains($reason, 'public DNS') => 'Le serveur cible ne possède pas de nom DNS public autorisé.',
                 str_contains($reason, 'resolve') || str_contains($reason, 'DNS') => 'Impossible de résoudre le domaine du serveur de diffusion.',
                 str_contains($reason, 'redirect') => 'Redirection du fournisseur invalide ou trop longue.',
                 str_contains($reason, 'timed out') || str_contains($reason, 'Timeout') => 'Le fournisseur ne répond pas assez vite.',
