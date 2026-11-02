@@ -8,6 +8,23 @@ namespace IptvService\Security;
  */
 final class TrustedProviderEndpoint
 {
+    /** Diagnostic sans adresse ni URL sensible. */
+    private function addressCategory(string $ip): string
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            if (preg_match('/^(10\\.|127\\.|192\\.168\\.|169\\.254\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)/', $ip)) {
+                return 'ipv4_private_or_local';
+            }
+            return 'ipv4_reserved_or_special';
+        }
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
+            if ($ip === '::1' || $ip === '::') return 'ipv6_loopback_or_unspecified';
+            if (preg_match('/^(fc|fd|fe[89ab])/i', $ip)) return 'ipv6_private_or_link_local';
+            return 'ipv6_reserved_or_special';
+        }
+        return 'invalid_address';
+    }
+
     public function requestOptions(string $url): array
     {
         $parts = parse_url($url);
@@ -42,7 +59,7 @@ final class TrustedProviderEndpoint
             $ip = $record['ip'] ?? $record['ipv6'] ?? null;
             if (!is_string($ip) || filter_var($ip, FILTER_VALIDATE_IP,
                 FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-                throw new \RuntimeException('Provider hostname resolves to a private, reserved or invalid IP address');
+                throw new \RuntimeException('Provider hostname resolves to a private, reserved or invalid IP address [' . $this->addressCategory((string) $ip) . ']');
             }
             $ips[] = $ip;
         }
