@@ -1,4 +1,4 @@
-FROM php:8.3-cli-alpine
+FROM php:8.4-cli-alpine
 RUN apk add --no-cache postgresql-dev libxml2-dev git unzip \
  && docker-php-ext-install dom \
  && docker-php-ext-install xmlreader simplexml pdo_pgsql
