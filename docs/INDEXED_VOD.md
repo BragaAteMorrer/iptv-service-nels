@@ -43,3 +43,21 @@ La commande est délibérément **non automatique** : ne pas la lancer en cron t
 Le client HTTP de cette commande ne suit pas les redirections et utilise le contrôle DNS/allowlist préexistant. Avant de synchroniser, vérifier `IPTV_TRUSTED_HOSTS`, la compatibilité de l'API fournisseur et les droits d'accès.
 
 **Attention :** cette nouvelle commande et ces fichiers n'ont pas été exécutés dans l'environnement Docker de l'utilisateur. Commencer par 1 ou 2 séries en test et vérifier le nombre d'épisodes et la cohérence des fiches avant d'augmenter.
+
+## Correction du catalogue Xtream
+
+`iptv:sync:source` classe maintenant `get_series` dans `vod_series` et non plus comme épisodes fictifs dans `channels`. Le synchroniseur normal de chaînes nécessite donc désormais la migration **007**. Après un `iptv:sync:source` réussi, les anciens enregistrements de séries mal classés comme épisodes sont désactivés uniquement s'ils ne sont pas reliés à `vod_episodes`. Les données et préférences ne sont pas supprimées. L'import de vrais épisodes reste une commande indépendante.
+
+### Ordre de validation conseillé
+
+```bash
+docker compose exec -T database psql -v ON_ERROR_STOP=1 -U iptv -d iptv < migrations/007_vod_series.sql
+docker compose exec api php -l src/Command/SyncSourceCommand.php
+docker compose exec api php -l src/Command/SyncVodCommand.php
+docker compose exec api php bin/console iptv:sync:source 1
+docker compose exec api php bin/console iptv:vod:sync 1 --offset=0 --limit=2
+docker compose exec database psql -U iptv -d iptv -c "SELECT count(*) FROM vod_series;"
+docker compose exec database psql -U iptv -d iptv -c "SELECT count(*) FROM vod_episodes;"
+```
+
+Adapter l'identifiant `1` à la source du compte. La migration peut être rejouée. **Aucune migration des 100 000 lignes existantes n'est requise** : les métadonnées sont reconstructibles par les identifiants fournisseur. Une sauvegarde est néanmoins conseillée avant la première synchronisation. Le code n'a pas été exécuté contre le fournisseur réel.
