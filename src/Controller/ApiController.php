@@ -12,6 +12,13 @@ final class ApiController {
         $token = $_ENV['IPTV_ADMIN_TOKEN'] ?? getenv('IPTV_ADMIN_TOKEN') ?: '';
         return strlen($token)>=24 && hash_equals($token,(string)$req->headers->get('X-Admin-Token',''));
     }
+    private function insertId(string $sql, array $params): int {
+        if (str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql')) {
+            $this->db->executeStatement($sql, $params);
+            return (int)$this->db->lastInsertId();
+        }
+        return (int)$this->db->fetchOne($sql.' RETURNING id', $params);
+    }
     #[Route('/api/health', methods:['GET'])]
     public function health(): JsonResponse { return new JsonResponse(['status'=>'ok']); }
     #[Route('/api/sources',methods:['GET'])]
@@ -41,9 +48,9 @@ final class ApiController {
             if (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/',$mac)) return new JsonResponse(['error'=>'Valid authorized MAC required'],422);
             $credentials=['mac'=>$mac];
         }
-        $sourceId=(int)$this->db->fetchOne('INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?) RETURNING id',[$name,$kind,$this->secrets->encrypt(['url'=>$url]),$this->secrets->encrypt($credentials),'pending']);
+        $sourceId=$this->insertId('INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES (?,?,?,?,?)',[$name,$kind,$this->secrets->encrypt(['url'=>$url]),$this->secrets->encrypt($credentials),'pending']);
         if($kind!=='mag'){
-            $jobId=(int)$this->db->fetchOne('INSERT INTO import_jobs(source_id,method) VALUES (?,?) RETURNING id',[$sourceId,'remote']);
+            $jobId=$this->insertId('INSERT INTO import_jobs(source_id,method) VALUES (?,?)',[$sourceId,'remote']);
             return new JsonResponse(['id'=>$sourceId,'job_id'=>$jobId,'status'=>'queued'],202);
         }
         return new JsonResponse(['id'=>$sourceId,'status'=>'pending','message'=>'Connecteur MAG fournisseur à configurer'],201);
