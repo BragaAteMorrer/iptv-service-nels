@@ -10,11 +10,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name:'iptv:import:xmltv',description:'Import programmes from local XMLTV file')]
 final class ImportXmltvCommand extends Command {
     public function __construct(private readonly Connection $db){parent::__construct();}
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
     protected function configure():void { $this->addArgument('file',InputArgument::REQUIRED,'XMLTV file path'); }
     private function date(string $raw): ?string {
         if(!preg_match('/^(\d{14})(?:\s+([+-]\d{4}))?/',trim($raw),$m)) return null;
         $date=\DateTimeImmutable::createFromFormat('!YmdHis O',$m[1].' '.($m[2]??'+0000'));
-        return $date ? $date->format('Y-m-d H:i:sP') : null;
+        return $date ? $date->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s') : null;
     }
     protected function execute(InputInterface $input,OutputInterface $output):int {
         $reader=new \XMLReader();
@@ -34,7 +35,10 @@ final class ImportXmltvCommand extends Command {
                 $title=trim((string)($node->title[0]??''));
                 if($title==='')continue;
                 $description=trim((string)($node->desc[0]??''));
-                $this->db->executeStatement('INSERT INTO epg_programmes(xmltv_channel,title,description,starts_at,ends_at) VALUES (?,?,?,?,?) ON CONFLICT(xmltv_channel,starts_at,ends_at) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description',[$channel,$title,$description,$start,$stop]);
+                $sql=$this->maria()
+                    ? 'INSERT INTO epg_programmes(xmltv_channel,title,description,starts_at,ends_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description)'
+                    : 'INSERT INTO epg_programmes(xmltv_channel,title,description,starts_at,ends_at) VALUES (?,?,?,?,?) ON CONFLICT(xmltv_channel,starts_at,ends_at) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description';
+                $this->db->executeStatement($sql,[$channel,$title,$description,$start,$stop]);
                 if(++$count%1000===0){$this->db->commit();$this->db->beginTransaction();}
             }
             $this->db->commit();
