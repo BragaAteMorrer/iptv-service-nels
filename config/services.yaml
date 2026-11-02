@@ -9,4 +9,5 @@ services:
     factory: ['Doctrine\DBAL\DriverManager', 'getConnection']
     arguments:
       -
+        driver: 'pdo_mysql'
         url: '%env(resolve:DATABASE_URL)%'
