@@ -26,14 +26,16 @@ async function playChannel(channel){
   if(!response.ok)throw Error(data.error||'Session impossible');
   if(ticket!==requestId)return;
   const video=$('video');
-  if(video.canPlayType('application/vnd.apple.mpegurl')){video.src=data.url;await video.play();}
-  else if(window.Hls&&Hls.isSupported()){
+  if(window.Hls&&Hls.isSupported()){
    hls=new Hls({maxBufferLength:20,backBufferLength:10});
-   hls.on(Hls.Events.ERROR,(_,error)=>{if(error.fatal&&ticket===requestId){$('status').textContent='Erreur de lecture : '+error.details;}});
+   hls.on(Hls.Events.ERROR,(_,error)=>{if(error.fatal&&ticket===requestId){const code=error.response?.code;const detail=code?'HTTP '+code+' · ':'';$('status').textContent='Erreur HLS : '+detail+error.details+' (flux ou codec incompatible)';}});
    hls.on(Hls.Events.MANIFEST_PARSED,async()=>{if(ticket===requestId){try{await video.play();}catch{$('status').textContent='Clique sur Lecture pour démarrer';}}});
    hls.loadSource(data.url);hls.attachMedia(video);
-  }else throw Error('Ce navigateur ne prend pas en charge HLS');
-  $('status').textContent='Chaîne '+channel.name+' · HLS';
+  }else if(video.canPlayType('application/vnd.apple.mpegurl')){
+   video.src=data.url;
+   try{await video.play();}catch(error){throw Error('Lecture HLS native impossible : '+error.message);}
+  }else throw Error('Moteur HLS indisponible : vérifie le chargement de hls.js ou essaie un autre navigateur.');
+  if(ticket===requestId)$('status').textContent='Connexion HLS à '+channel.name+'…';
  }catch(e){if(ticket===requestId)$('status').textContent='Lecture indisponible : '+e.message;}
 }
 $('video').addEventListener('playing',()=>{$('status').textContent='EN DIRECT';});
