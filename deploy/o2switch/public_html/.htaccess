@@ -1,12 +1,13 @@
 Options -Indexes
-DirectoryIndex index.php
+DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^\.well-known/ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^ index.php [QSA,L]
+    # Staging only: no API, playback relay, PHP or internal files exposed.
+    RewriteRule ^api(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:index\.php|router\.php)$ - [F,L,NC]
+    RewriteRule \.(?:php|sql|env|log|lock|json|yaml|yml)$ - [F,L,NC]
 </IfModule>
 
 <FilesMatch "^\.(?!well-known).*$">
