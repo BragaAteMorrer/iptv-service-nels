@@ -11,3 +11,5 @@ foreach($cases as [$user,$source,$expected]) { if ($access->allows($user,$source
 $db->executeStatement('DELETE FROM user_source_access WHERE user_id=1 AND source_id=10');
 if ($access->allows(1,10)) { fwrite(STDERR, "FAIL: revoked grant\n"); exit(1); }
 echo "PASS: source isolation, default-deny and revocation (isolated SQLite)\n";
+
+// Token lifecycle coverage is maintained separately from source grants.
