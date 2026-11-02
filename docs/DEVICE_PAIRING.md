@@ -34,3 +34,9 @@ Ouvre `http://localhost:8080/devices.html`.
 Le projet utilise encore `APP_DEBUG=1`, la base locale avec mot de passe de développement, et le serveur HTTP PHP intégré. Il manque impérativement : TLS/HTTPS de bout en bout, reverse proxy, limitation des tentatives de connexion et de codes, verrouillage après trop d'erreurs, cookies ou stockage natif sécurisé des jetons, rotation et expiration des jetons appareil, authentification par appareil sur les routes catalogue/lecture, isolation multi-utilisateurs des sources, audit, migrations automatisées, et tests d'intégration. **Le jeton appareil ne donne encore aucun accès aux chaînes** : il matérialise seulement l'association.
 
 Ne pas ouvrir les ports Docker sur Internet ni publier de jetons ou URL d'abonnement.
+
+## Phase 1B : accès lecture
+
+La page `/tv.html` accepte une connexion e-mail/mot de passe ; le jeton d'utilisateur est conservé uniquement en mémoire dans l'onglet. Les API `/api/catalog/discover`, `/api/catalog/groups`, `/api/catalog/summary`, `/api/lineup` (GET) et `POST /api/playback/channel/{id}/session` acceptent aussi les jetons d'appareil après association. Envoyer `Authorization: Bearer <token>`. Les modifications d'ordre des chaînes et les imports restent réservés au jeton administrateur.
+
+**Limite importante** : ce prototype ne distingue pas encore les bibliothèques de plusieurs comptes, et les codes d'association / connexions ne disposent pas d'une limitation de débit suffisante pour un accès public. L'API doit rester sur `127.0.0.1` et ne doit pas être exposée sur Internet avant durcissement. L'application Android TV native n'est pas encore créée.
