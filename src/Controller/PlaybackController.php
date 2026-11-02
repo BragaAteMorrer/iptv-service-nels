@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Component\HttpClient\HttpClient;
 
 /**
  * Local-development HLS relay. Encrypted, short-lived tickets keep provider
@@ -22,8 +23,13 @@ final class PlaybackController
         private readonly Connection $db,
         private readonly SecretBox $box,
         private readonly TrustedProviderEndpoint $trusted,
-        private readonly HttpClientInterface $http,
-    ) {}
+    ) {
+        // Private playback client: never pass provider URLs containing subscriber
+        // credentials to Symfony's request/response logging decorator.
+        $this->http = HttpClient::create();
+    }
+
+    private readonly HttpClientInterface $http;
 
     private function ticket(string $url, int $sourceId): string
     {
