@@ -15,6 +15,8 @@ final class IdentityController
 {
     public function __construct(private readonly Connection $db) {}
 
+    private function maria(): bool { return str_contains((string)($this->db->getParams()['driver'] ?? ''), 'mysql'); }
+
     private function json(Request $r): ?array
     {
         try { $data = $r->toArray(); return is_array($data) ? $data : null; }
@@ -48,7 +50,12 @@ final class IdentityController
             return new JsonResponse(['error'=>'Compte initial déjà créé'],409);
         }
         try {
-            $id=$this->db->fetchOne('INSERT INTO app_users(email,password_hash) VALUES(?,?) RETURNING id',[$email,password_hash($password,PASSWORD_DEFAULT)]);
+            if ($this->maria()) {
+                $this->db->executeStatement('INSERT INTO app_users(email,password_hash) VALUES(?,?)',[$email,password_hash($password,PASSWORD_DEFAULT)]);
+                $id=(int)$this->db->lastInsertId();
+            } else {
+                $id=$this->db->fetchOne('INSERT INTO app_users(email,password_hash) VALUES(?,?) RETURNING id',[$email,password_hash($password,PASSWORD_DEFAULT)]);
+            }
         } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) {
             return new JsonResponse(['error'=>'Compte existant'],409);
         }
@@ -67,7 +74,7 @@ final class IdentityController
             return new JsonResponse(['error'=>'Identifiants invalides'],401);
         }
         $token=$this->token();
-        $this->db->executeStatement("INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,NOW()+INTERVAL '7 days')",[(int)$row['id'],hash('sha256',$token)]);
+        $this->db->executeStatement($this->maria() ? "INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(NOW(), INTERVAL 7 DAY))" : "INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES(?,?,NOW()+INTERVAL '7 days')",[(int)$row['id'],hash('sha256',$token)]);
         return new JsonResponse(['access_token'=>$token,'token_type'=>'Bearer','expires_in'=>604800]);
     }
 
@@ -95,7 +102,7 @@ final class IdentityController
         for ($i=0;$i<5;$i++) {
             if ($i>0) { $code=(string)random_int(100000,999999); $hash=hash('sha256',$code); }
             try {
-                $this->db->executeStatement("INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,NOW()+INTERVAL '5 minutes')",[$name,hash('sha256',$pairingId),$hash]);
+                $this->db->executeStatement($this->maria() ? "INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,DATE_ADD(NOW(), INTERVAL 5 MINUTE))" : "INSERT INTO app_devices(device_name,device_type,device_token_hash,pairing_code_hash,pairing_expires_at) VALUES(?,'tv',?,?,NOW()+INTERVAL '5 minutes')",[$name,hash('sha256',$pairingId),$hash]);
                 return new JsonResponse(['pairing_id'=>$pairingId,'code'=>$code,'expires_in'=>300],201);
             } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException) { /* retry collision */ }
         }
