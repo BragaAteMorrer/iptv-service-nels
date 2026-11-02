@@ -14,7 +14,7 @@ Le fichier `public/catalog.html` contient maintenant une interface responsive po
 ## Périmètre réel
 
 - Layout adapté aux petites tailles d'écran et affiches/logo HTTPS quand fournis.
-- Le filtre Favoris, recherche texte et catégorie, en mode compte, s'appliquent **uniquement aux éléments de la page courante**. La recherche globale côté serveur est une amélioration à faire avant usage à grande échelle.
+- Les filtres Favoris, recherche texte et catégorie sont désormais appliqués **à l'ensemble du catalogue côté PostgreSQL**, avec un total et une pagination cohérents. La recherche ILIKE peut nécessiter un index trigramme selon la volumétrie et les quotas PostgreSQL o2switch.
 - L'application ne présente pas encore les saisons/épisodes regroupés, les fiches films, ni la lecture VOD.
 - Les jetons de connexion restent en mémoire du navigateur et ne sont pas enregistrés en stockage persistant. La navigation vers le décodeur demande une nouvelle connexion.
 - L'API du catalogue personnel nécessite `006_user_library.sql`. L'accès historique via jeton administrateur reste fonctionnel.
