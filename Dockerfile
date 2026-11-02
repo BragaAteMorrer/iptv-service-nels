@@ -1,6 +1,6 @@
 FROM php:8.3-cli-alpine
 RUN apk add --no-cache postgresql-dev libxml2-dev git unzip \
- && docker-php-ext-install pdo_pgsql xmlreader simplexml
+ && docker-php-ext-install -j$(nproc) dom pdo_pgsql simplexml xmlreader
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 WORKDIR /app
 RUN printf 'upload_max_filesize=350M\npost_max_size=360M\nmemory_limit=512M\nmax_execution_time=300\n' > /usr/local/etc/php/conf.d/iptv-upload.ini
