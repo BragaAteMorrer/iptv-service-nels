@@ -78,7 +78,37 @@ final class PlaybackController
             } else {
                 return new JsonResponse(['error' => 'Type de source non pris en charge'], 422);
             }
-            $this->trusted->requestOptions($url);
+            $options = $this->trusted->requestOptions($url);
+            // Detect provider-side errors before giving the browser an HLS URL.
+            // Never include upstream URLs, credentials or response bodies in error messages.
+            $probe = $this->http->request('GET', $url, array_replace($options, ['timeout' => 12]));
+            $status = $probe->getStatusCode();
+            if ($status !== 200) {
+                $probe->cancel();
+                return new JsonResponse([
+                    'error' => 'Le fournisseur refuse le flux HLS (HTTP ' . $status . '). Cette chaîne peut nécessiter le format MPEG-TS (.ts), indisponible dans ce lecteur pour le moment.',
+                    'upstream_status' => $status,
+                ], 422);
+            }
+            $type = strtolower((string) ($probe->getHeaders(false)['content-type'][0] ?? ''));
+            if (str_contains($type, 'video/mp2t') || str_contains($type, 'application/octet-stream')) {
+                $probe->cancel();
+                return new JsonResponse(['error' => 'Le fournisseur renvoie un flux MPEG-TS plutôt qu’une playlist HLS. Une passerelle de conversion est nécessaire.'], 422);
+            }
+            // A 200 response alone is not sufficient: some Xtream servers return
+            // an HTML error page with HTTP 200 for unsupported extensions.
+            $body = '';
+            foreach ($this->http->stream($probe) as $chunk) {
+                if ($chunk->isTimeout()) throw new \RuntimeException('Provider probe timed out');
+                $body .= $chunk->getContent();
+                if (strlen($body) > 2 * 1024 * 1024) {
+                    $probe->cancel();
+                    return new JsonResponse(['error' => 'La réponse du fournisseur n’est pas une playlist HLS de taille raisonnable.'], 422);
+                }
+            }
+            if (!str_starts_with(ltrim($body), '#EXTM3U') || !str_contains($body, '#EXT-X-')) {
+                return new JsonResponse(['error' => 'Le fournisseur ne renvoie pas de playlist HLS valide. Le format .m3u8 est probablement indisponible pour cette chaîne.'], 422);
+            }
             return new JsonResponse(['url' => '/api/playback/relay?ticket=' . rawurlencode($this->ticket($url, (int)$row['source_id'])), 'expires_in' => 900]);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Lecture indisponible : vérifie le serveur et les autorisations réseau'], 422);
