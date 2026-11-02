@@ -2,19 +2,20 @@
 declare(strict_types=1);
 namespace IptvService\Controller;
 use Doctrine\DBAL\Connection;
+use IptvService\Security\ViewerAccess;
 use Doctrine\DBAL\ParameterType;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 final class LineupController {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(private readonly Connection $db, private readonly ViewerAccess $viewers) {}
     private function allowed(Request $request): bool {
         $secret=$_ENV['IPTV_ADMIN_TOKEN'] ?? getenv('IPTV_ADMIN_TOKEN') ?: '';
         return strlen($secret)>=24 && hash_equals($secret,(string)$request->headers->get('X-Admin-Token',''));
     }
     #[Route('/api/lineup',methods:['GET'])]
     public function list(Request $request): JsonResponse {
-        if (!$this->allowed($request)) return new JsonResponse(['error'=>'Unauthorized'],401);
+        if (!$this->viewers->authorized($request)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $page=max(1,min(100000,(int)$request->query->get('page',1)));
         $limit=max(1,min(100,(int)$request->query->get('limit',50)));
         $fav=$request->query->get('favorites')==='1';
