@@ -5,7 +5,7 @@ namespace IptvService\Catalog;
 /** Conservative classification: prefer provider group, then file extension and episode markers. */
 final class ContentClassifier {
     public function classify(string $name,string $group,string $url): string {
-        $g=mb_strtolower($group);
+        $g=strtolower($group);
         $ext=strtolower(pathinfo((string)(parse_url($url,PHP_URL_PATH) ?: ''),PATHINFO_EXTENSION));
         $episode=(bool)preg_match('/(?:\bS\d{1,2}\s*E\d{1,3}\b|\b\d{1,2}x\d{1,3}\b)/i',$name);
         if ($episode || preg_match('/s[ée]ries?|series|temporada|epis[oó]dios?|season/i',$g)) return 'episode';
