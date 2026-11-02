@@ -9,13 +9,15 @@ h1{font-size:24px}button,input{background:#243550;border:1px solid #57708c;borde
 #guide{margin-top:25px}#guide li{margin:8px 0;padding:12px;background:#142438;border-radius:8px}
 @media(max-width:700px){main{padding:12px}.screen{padding:14px}#banner strong{font-size:21px}}</style></head>
 <body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a></span></header>
-<label>Jeton local <input id="token" type="password" autocomplete="off"></label><button id="load">Ouvrir le bouquet</button>
+<div class="controls"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Mot de passe <input id="password" type="password" autocomplete="current-password"></label><button id="login">Connexion Nels TV</button></div>
+<details><summary>Accès administrateur local (ancien mode)</summary><label>Jeton local <input id="token" type="password" autocomplete="off"></label></details><button id="load">Ouvrir le bouquet</button>
 <div class="screen"><video id="video" playsinline controls aria-label="Chaîne en direct"></video><p id="status">Choisis une chaîne pour commencer</p><div id="banner"><div id="number">—</div><strong id="name">Aucune chaîne</strong><div id="now">Sélectionne une chaîne</div></div></div>
 <div class="controls"><button id="previous" aria-label="Chaîne précédente">CH −</button><button id="next" aria-label="Chaîne suivante">CH +</button><button id="guideButton">Guide TV</button><span id="info">Utilise ↑ ↓ pour zapper</span></div><div id="guide"><h2>Programmes</h2><ul id="programmes"></ul></div>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0;
-async function get(path){let r=await fetch('/api/'+path,{headers:{'X-Admin-Token':$('token').value}});let data=await r.json();if(!r.ok)throw Error(data.error||'Erreur');return data;}
+const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='';
+function authHeaders(){return userToken?{'Authorization':'Bearer '+userToken}:{'X-Admin-Token':$('token').value};}
+async function get(path){let r=await fetch('/api/'+path,{headers:authHeaders()});let data=await r.json();if(!r.ok)throw Error(data.error||'Erreur');return data;}
 function render(){let c=channels[index];if(!c)return;playChannel(c);$('number').textContent=c.channel_number??'—';$('name').textContent=c.name;$('now').textContent=c.group_name||'Télévision en direct';$('programmes').replaceChildren();loadGuide();}
 function stopPlayer(){if(hls){hls.destroy();hls=null;}$('video').pause();$('video').removeAttribute('src');$('video').load();}
 async function playChannel(channel){
@@ -42,6 +44,7 @@ $('video').addEventListener('playing',()=>{$('status').textContent='EN DIRECT';}
 async function loadGuide(){let c=channels[index];if(!c)return;const selected=c.id;try{let d=await get('epg/channel/'+selected);if(channels[index]?.id!==selected)return;$('programmes').replaceChildren();if(!d.items.length)$('now').textContent='Aucun programme EPG associé';for(let p of d.items){let li=document.createElement('li');li.textContent=new Date(p.starts_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' — '+p.title;$('programmes').append(li);}const current=d.items.find(p=>new Date(p.starts_at)<=new Date()&&new Date(p.ends_at)>new Date());if(current)$('now').textContent=current.title;}catch(e){$('info').textContent=e.message;}}
 async function load(){try{channels=[];for(let page=1;page<=10;page++){let d=await get('lineup?page='+page+'&limit=100');channels.push(...d.items);if(d.items.length<100)break;}index=0;render();$('info').textContent=channels.length+' chaînes chargées (max. 1000)';}catch(e){$('info').textContent=e.message;}}
 function zap(step){if(!channels.length)return;index=(index+step+channels.length)%channels.length;render();}
+$('login').onclick=async()=>{try{const r=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});const d=await r.json();if(!r.ok)throw Error(d.error||'Connexion impossible');userToken=d.access_token;$('password').value='';$('info').textContent='Compte connecté';await load();}catch(e){$('info').textContent=e.message;}};
 $('load').onclick=load;$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=loadGuide;
 document.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement)return;if(e.key==='ArrowUp'){e.preventDefault();zap(-1)}if(e.key==='ArrowDown'){e.preventDefault();zap(1)}});
 window.addEventListener('pagehide',stopPlayer);
