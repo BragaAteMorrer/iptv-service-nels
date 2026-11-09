@@ -8,7 +8,7 @@ h1{margin:0 0 8px;font-size:26px}a{color:var(--accent)}select,input,button{backg
 form{display:flex;gap:8px;margin:17px 0;flex-wrap:wrap}input{flex:1;min-width:270px}.screen{background:var(--bg);position:relative;aspect-ratio:16/9;border:2px solid #3d506c;border-radius:12px;overflow:hidden}video{height:100%;width:100%;object-fit:contain;background:#000}.banner{position:absolute;left:3%;bottom:5%;max-width:75%;background:var(--panel);border-left:6px solid var(--accent);padding:13px 22px;pointer-events:none;transition:opacity .3s}.banner.hidden{opacity:0}.banner strong{display:block;font-size:27px}.banner small{color:#cbd7e4}.buttons{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}#message{min-height:26px;color:#d8e6f7}small{color:#becddd}
 @media(max-width:650px){.banner strong{font-size:18px}.banner{padding:8px;max-width:94%}}
 </style>
-</head><body data-theme="nos"><main>
+<link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body data-theme="nos"><main>
 <header><div><h1>Nels TV · Lecteur</h1><small>Prototype HLS pour flux autorisés — thèmes d'inspiration historique</small></div>
 <div><label for="theme">Thème </label><select id="theme"><option value="nos">NOS moderne</option><option value="mediasat">CanalSatellite 1996 (inspiré)</option><option value="tps">TPS 1998 (inspiré)</option></select></div></header>
 <form id="form"><input id="stream" type="url" required placeholder="https://exemple.org/chaine/index.m3u8" aria-label="URL HLS autorisée" autocomplete="off"><button type="submit">Lire le flux</button></form>
