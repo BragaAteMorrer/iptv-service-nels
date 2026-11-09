@@ -50,6 +50,9 @@ final class BrowserIdentityController
     #[Route('/api/identity/browser/login', methods: ['POST'])]
     public function login(Request $request): JsonResponse
     {
+        if (!BrowserSessionListener::allowedMutation($request)) {
+            return new JsonResponse(['error' => 'Origine invalide'], 403, ['Cache-Control' => 'no-store']);
+        }
         $login = $this->identity->login($request);
         if ($login->getStatusCode() !== 200) return $login;
         $data = json_decode((string)$login->getContent(), true);
@@ -79,6 +82,9 @@ final class BrowserIdentityController
     #[Route('/api/identity/browser/logout', methods: ['POST'])]
     public function logout(Request $request): JsonResponse
     {
+        if (!BrowserSessionListener::allowedMutation($request)) {
+            return new JsonResponse(['error' => 'Origine invalide'], 403, ['Cache-Control' => 'no-store']);
+        }
         // Revoke exactly the cookie session, never an unrelated bearer/device token.
         $token = (string)$request->cookies->get(BrowserSessionListener::cookieName($request), '');
         if (preg_match('/^[a-f0-9]{64}$/D', $token)) {
