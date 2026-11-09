@@ -31,7 +31,7 @@ $('page').textContent='Page '+page;$('prev').disabled=page===1;$('next').disable
 $('login').onclick=async()=>{
  try{
   const response=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value}),cache:'no-store',credentials:'omit'});
-  const data=await response.json().catch(()=>({});
+  const data=await response.json().catch(()=>({}));
   if(!response.ok||typeof data.access_token!=='string')throw Error(data.error||'Connexion impossible');
   bearer=data.access_token;$('password').value='';$('message').textContent='Connecté';page=1;await load();
  }catch(error){$('message').textContent=error.message;}
