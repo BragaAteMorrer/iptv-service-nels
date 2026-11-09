@@ -37,7 +37,7 @@ async function api(path){
  return data;
 }
 function tile(item,kind){
- const article=document.createElement('article');article.className='tile';
+ const article=document.createElement('article');article.className='tile';article.dataset.itemId=String(item.id);
  const tag=document.createElement('span');tag.className='tag';tag.textContent=kind==='live'?'EN DIRECT':'FILM';
  const title=document.createElement('strong');title.textContent=item.name||'Sans titre';
  const group=document.createElement('small');group.textContent=item.group_name||'Sans catégorie';
@@ -46,6 +46,22 @@ function tile(item,kind){
  else{link.href='/catalog.html';link.textContent='Ouvrir le catalogue';}
  article.append(tag,title,group,link);
  return article;
+}
+function localTime(input){if(typeof input!=='string')return NaN;const normalized=input.trim().replace(' ','T');return Date.parse(/[zZ]$|[+-][0-9]{2}:[0-9]{2}$/.test(normalized)?normalized:normalized+'Z');}
+async function enrichLive(items,serial){
+ // Only the first four favorites trigger EPG requests on the home screen.
+ await Promise.all(items.slice(0,4).map(async item=>{
+  try{
+   const data=await api('/api/epg/channel/'+encodeURIComponent(item.id));
+   if(serial!==generation)return;
+   const now=Date.now();
+   const programme=(Array.isArray(data.items)?data.items:[]).find(p=>localTime(p.starts_at)<=now&&localTime(p.ends_at)>now);
+   const card=[...$('favorites').children].find(el=>el.dataset.itemId===String(item.id));
+   if(card&&programme){
+    const line=document.createElement('small');line.textContent='Maintenant : '+programme.title;card.insertBefore(line,card.lastElementChild);
+   }
+  }catch{/* Missing EPG is not an error for the favorites rail. */}
+ }));
 }
 function reset(){
  ++generation;bearer='';$('password').value='';$('logout').hidden=true;$('login').hidden=false;
@@ -64,7 +80,7 @@ async function populate(){
    if(serial!==generation)return;
    const items=Array.isArray(data.items)?data.items:[];
    $(target).replaceChildren(...items.map(i=>tile(i,kind)));
-   $(status).textContent=items.length?items.length+' favoris affichés':'Aucun favori enregistré pour le moment.';
+   $(status).textContent=items.length?items.length+' favoris affichés':'Aucun favori enregistré pour le moment.';if(kind==='live'&&items.length)enrichLive(items,serial);
   }catch(error){if(serial===generation)$(status).textContent='Impossible de charger les favoris : '+error.message;}
  }));
 }
@@ -81,5 +97,5 @@ $('account').addEventListener('submit',async event=>{
  finally{$('login').disabled=false;}
 });
 $('logout').onclick=reset;
-window.addEventListener('pagehide',()=>{bearer='';++generation;});
+window.addEventListener('pagehide',()=>{bearer='';++generation;});window.addEventListener('pageshow',event=>{if(event.persisted)reset();});
 </script></body></html>
