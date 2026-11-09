@@ -5,6 +5,8 @@ DirectoryIndex home.html index.html
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^\.well-known/ - [L]
+    # Disallow direct PHP front-controller entry, including PATH_INFO suffixes.
+    RewriteRule ^(?:index\.php|router\.php)(?:/|$) - [F,END,NC]
 
     # Static HTML and assets are served normally; the PHP controller
     # applies independent environment, identity and method gates.
@@ -23,10 +25,15 @@ DirectoryIndex home.html index.html
 
     # No admin/source imports, legacy relay, VOD range, or generic API access.
     RewriteRule ^api(?:/|$) - [F,END,NC]
-    RewriteRule ^(?:index\.php|router\.php)$ - [F,END,NC]
     RewriteRule \.(?:php|sql|env|log|lock|json|yaml|yml)$ - [F,END,NC]
 </IfModule>
 
 <FilesMatch "^\.(?!well-known).*$">
     Require all denied
 </FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set Referrer-Policy "no-referrer"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
