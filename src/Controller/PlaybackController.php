@@ -27,6 +27,7 @@ final class PlaybackController
         private readonly TrustedProviderEndpoint $trusted,
         private readonly ViewerAccess $viewers,
         private readonly SourceAccess $sources,
+        private readonly \IptvService\Security\DirectHlsPolicy $directHls,
     ) {
         // Private playback client: never pass provider URLs containing subscriber
         // credentials to Symfony's request/response logging decorator.
@@ -42,6 +43,14 @@ final class PlaybackController
             && (($_SERVER['IPTV_ENABLE_LOCAL_RELAY'] ?? getenv('IPTV_ENABLE_LOCAL_RELAY') ?: '') === '1');
     }
 
+
+    /** An explicitly enabled production mode that does not relay any media bytes. */
+    private function directHlsEnabled(): bool
+    {
+        return (($_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'prod')
+            && (($_SERVER['APP_DEBUG'] ?? getenv('APP_DEBUG') ?: '0') !== '1')
+            && (($_SERVER['IPTV_ENABLE_DIRECT_HLS'] ?? getenv('IPTV_ENABLE_DIRECT_HLS') ?: '') === '1');
+    }
 
     private function ticket(string $url, int $sourceId): string
     {
@@ -110,8 +119,13 @@ final class PlaybackController
     #[Route('/api/playback/channel/{id<\d+>}/session', methods: ['POST'])]
     public function session(Request $request, int $id): JsonResponse
     {
-        if (!$this->relayEnabled()) return new JsonResponse(['error'=>'Playback unavailable'],403);
-        if (!$this->viewers->authorized($request)) {
+        $localRelay = $this->relayEnabled();
+        $directHls = $this->directHlsEnabled();
+        if (!$localRelay && !$directHls) return new JsonResponse(['error'=>'Playback unavailable'],403);
+        // Production direct playback must use a real user or paired device;
+        // the legacy admin token cannot authorize delivery of provider URLs.
+        if (!$this->viewers->authorized($request)
+            || ($directHls && !$localRelay && $this->viewers->userId($request) === null)) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
         $row = $this->db->fetchAssociative(
@@ -124,6 +138,25 @@ final class PlaybackController
             $user=$this->viewers->userId($request);
             if ($user===null || !$this->sources->allows($user,(int)$row['source_id']))
                 return new JsonResponse(['error'=>'Chaîne introuvable'],404);
+        }
+
+        if ($directHls && !$localRelay) {
+            if ($row['source_kind'] !== 'm3u') {
+                return new JsonResponse(['error' => 'Ce type de source nécessite une passerelle vidéo dédiée.'], 422);
+            }
+            try {
+                $plain = $this->box->decrypt((string)$row['stream_url']);
+                $url = (string)($plain['url'] ?? '');
+                $this->directHls->assertAllowed($url);
+            } catch (\Throwable $e) {
+                error_log('Direct HLS policy rejected source: ' . get_class($e));
+                return new JsonResponse(['error' => 'Flux HLS direct non autorisé ou incompatible : vérifie HTTPS, CORS et les domaines autorisés.'], 422);
+            }
+            return new JsonResponse(
+                ['url' => $url, 'mode' => 'direct-hls', 'expires_in' => 0],
+                200,
+                ['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer', 'X-Content-Type-Options' => 'nosniff']
+            );
         }
 
         try {
