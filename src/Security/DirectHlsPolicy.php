@@ -11,13 +11,12 @@ final class DirectHlsPolicy
 {
     public function __construct(private readonly TrustedProviderEndpoint $trusted) {}
 
-    public function assertAllowed(string $url): void
+    public static function assertPublicUrl(string $url, array $publicHosts): void
     {
         $parts = parse_url($url);
         if (!is_array($parts)
             || strtolower((string)($parts['scheme'] ?? '')) !== 'https'
             || !isset($parts['host'])
-            || isset($parts['user'], $parts['pass'])
             || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['query']) || isset($parts['fragment'])
             || (isset($parts['port']) && (int)$parts['port'] !== 443)
@@ -36,16 +35,22 @@ final class DirectHlsPolicy
             throw new \DomainException('Credential-bearing provider path is not eligible');
         }
 
-        $publicHosts = array_filter(array_map(
-            static fn(string $value): string => strtolower(rtrim(trim($value), '.')),
-            explode(',', (string)(getenv('IPTV_PUBLIC_HLS_HOSTS') ?: ''))
-        ));
         if (!in_array($host, $publicHosts, true)) {
             throw new \DomainException('Host is not explicitly approved for public HLS playback');
         }
 
-        // Also enforce the SSRF/DNS protections and exact IPTV_TRUSTED_HOSTS allowlist.
-        // Validation performs DNS checks but never downloads the video stream.
+    }
+
+    public function assertAllowed(string $url): void
+    {
+        $publicHosts = array_filter(array_map(
+            static fn(string $value): string => strtolower(rtrim(trim($value), '.')),
+            explode(',', (string)(getenv('IPTV_PUBLIC_HLS_HOSTS') ?: ''))
+        ));
+        self::assertPublicUrl($url, $publicHosts);
+
+        // DNS validation also enforces the independent IPTV_TRUSTED_HOSTS list.
+        // No media data is fetched by this operation.
         $this->trusted->requestOptions($url);
     }
 }
