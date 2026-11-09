@@ -62,7 +62,7 @@ html[data-theme="tps"] #decoderPanel #menuList button{border-radius:3px 13px 3px
 <section id="multiGuide" hidden aria-label="Grille des programmes multichaîne" aria-busy="false"><p class="ns-guide-kicker">Guide électronique des programmes</p><header><h2>Grille TV · Toutes les chaînes</h2><div id="multiGuideControls"><button id="gridPrev" type="button">← Précédentes</button><span id="gridPage">Page 1</span><button id="gridNext" type="button">Suivantes →</button><button id="gridRefresh" type="button">Actualiser</button></div></header><p id="gridSummary" role="status">Ouvre ton bouquet pour afficher le guide multichaîne.</p><div id="gridRows" aria-label="Programmes actuels et suivants"></div></section>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='',favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0;
+const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='',favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay';
 function authHeaders(){return userToken?{'Authorization':'Bearer '+userToken}:{'X-Admin-Token':$('token').value};}
 async function get(path){let r=await fetch('/api/'+path,{headers:authHeaders()});let data=await r.json();if(!r.ok)throw Error(data.error||'Erreur');return data;}
 function isFavorite(c){return c.favorite===true||c.favorite===1||c.favorite==='1';}
@@ -226,7 +226,7 @@ function failPlayback(message,diagnostic){
 function scheduleNetworkRecovery(engine,ticket){
  if(ticket!==requestId||engine!==hls)return;
  if(!navigator.onLine){setConnection('recovering','Hors connexion','Connexion réseau interrompue');return;}
- if(networkRetries>=3){failPlayback('Le flux ne répond toujours pas. Essaie à nouveau ou choisis une autre chaîne.','Échec réseau après 3 tentatives');return;}
+ if(networkRetries>=3){failPlayback(playbackMode==='direct-hls'?'Flux inaccessible depuis ce navigateur : vérifie les autorisations CORS du fournisseur ou essaie une autre chaîne.':'Le flux ne répond toujours pas. Essaie à nouveau ou choisis une autre chaîne.','Échec réseau après 3 tentatives');return;}
  const wait=[1000,2500,5000][networkRetries++];
  clearRecovery();setConnection('recovering','Reconnexion…','Tentative réseau '+networkRetries+'/3');
  recoveryTimer=setTimeout(()=>{recoveryTimer=null;if(ticket===requestId&&engine===hls&&navigator.onLine)engine.startLoad(-1);},wait);
@@ -236,19 +236,27 @@ async function playChannel(channel){
  $('retryPlayback').hidden=true;$('playbackHint').textContent='';$('status').textContent='Connexion à '+channel.name+'…';
  setConnection('connecting','Connexion…','Ouverture de la session de lecture');
  try{
-  const response=await fetch('/api/playback/channel/'+encodeURIComponent(channel.id)+'/session',{method:'POST',headers:authHeaders()});
+  const response=await fetch('/api/playback/channel/'+encodeURIComponent(channel.id)+'/session',{method:'POST',headers:{...authHeaders(),'Content-Type':'application/json'},body:'{}',cache:'no-store',credentials:'omit'});
   // Avoid interpreting upstream HTML error pages as JSON.
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Session impossible (HTTP '+response.status+')');
   if(ticket!==requestId)return;
-  if(typeof data.url!=='string'||!data.url.startsWith('/api/playback/relay?'))throw Error('Session de lecture invalide');
+  if(typeof data.url!=='string')throw Error('Session de lecture invalide');
+  if(data.mode==='direct-hls'){
+   const target=new URL(data.url);
+   if(target.protocol!=='https:'||target.username||target.password||target.search||target.hash||!target.pathname.toLowerCase().endsWith('.m3u8'))
+    throw Error('URL HLS directe invalide');
+   playbackMode='direct-hls';
+  }else if(data.url.startsWith('/api/playback/relay?')){
+   playbackMode='relay';
+  }else throw Error('Mode de lecture non reconnu');
   const video=$('video');playbackStartedAt=Date.now();
   if(window.Hls&&Hls.isSupported()){
    const engine=new Hls({maxBufferLength:20,backBufferLength:10});
    hls=engine;
    engine.on(Hls.Events.MANIFEST_PARSED,async()=>{
     if(ticket!==requestId||engine!==hls)return;
-    syncQuality();setConnection('connecting','Préparation…','Playlist HLS chargée');
+    syncQuality();setConnection('connecting','Préparation…',playbackMode==='direct-hls'?'HLS direct · playlist chargée':'Playlist HLS relayée chargée');
     try{await video.play();}catch{if(ticket===requestId)$('playbackHint').textContent='Clique sur Lecture pour démarrer la vidéo.';}
    });
    engine.on(Hls.Events.LEVEL_SWITCHED,(_,data)=>{
@@ -266,7 +274,7 @@ async function playChannel(channel){
    });
    engine.loadSource(data.url);engine.attachMedia(video);
   }else if(video.canPlayType('application/vnd.apple.mpegurl')){
-   resetQuality();video.src=data.url;setConnection('connecting','Préparation…','Lecture HLS native');
+   resetQuality();video.src=data.url;setConnection('connecting','Préparation…',playbackMode==='direct-hls'?'Lecture HLS native directe':'Lecture HLS native relayée');
    try{await video.play();}catch{if(ticket===requestId)$('playbackHint').textContent='Clique sur Lecture pour démarrer la vidéo.';}
   }else throw Error('Ce navigateur ne prend pas en charge la lecture HLS.');
  }catch(error){if(ticket===requestId)failPlayback('Lecture indisponible : '+error.message,'Impossible d’ouvrir la session');}
