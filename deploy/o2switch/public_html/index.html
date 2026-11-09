@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Nels TV — Connexion</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,#1d3159 0,#0a1020 48%,#080c15 100%);color:#eef3ff;display:grid;place-items:center;padding:25px}main{width:min(440px,100%);background:#101b2e;border:1px solid #324261;border-radius:22px;padding:34px;box-shadow:0 18px 60px #0005}h1{font-size:2.6rem;letter-spacing:-.05em;margin:0}h1 span{color:#65b8ff}.subtitle{color:#aebdd4;line-height:1.55;margin:10px 0 26px}label{display:block;margin:18px 0 7px;font-weight:650;font-size:.92rem}select{width:100%;padding:13px;background:#0a1220;border:1px solid #50627c;color:white;border-radius:10px}input{width:100%;padding:13px;border-radius:10px;background:#0a1220;border:1px solid #50627c;color:#fff;font:inherit}input:focus{outline:2px solid #69b9ff;outline-offset:1px}button{width:100%;padding:14px;margin-top:23px;border:0;border-radius:11px;background:#4aabf5;color:#051220;font:inherit;font-weight:750;cursor:pointer}button:disabled{opacity:.65;cursor:wait}.device-item{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}.device-item button{width:auto;margin:0;padding:7px 12px;background:#243854;color:#e7f2ff;font-size:.84rem}.device-name{overflow-wrap:anywhere}.muted{color:#9bacc7;font-size:.84rem;line-height:1.5}#message{margin:18px 0 0;min-height:20px;color:#ffd1d1}#message.ok{color:#b3f3ce}#session{display:none}#identity{display:block}ul{padding-left:20px;line-height:1.8}.footer{margin-top:26px;border-top:1px solid #33415b;padding-top:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Nels <span>TV</span></h1>
+  <p class="subtitle">Votre espace personnel de télévision, films et séries.</p>
+  <section id="identity">
+    <form id="login">
+      <label for="email">Adresse e-mail</label>
+      <input type="email" id="email" name="email" required autocomplete="username" maxlength="254">
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" minlength="12">
+      <button type="submit" id="submit">Se connecter</button>
+    </form>
+  </section>
+  <section id="session" aria-live="polite">
+    <h2>Connexion établie</h2>
+    <p class="muted">La gestion des appareils est disponible. Le catalogue TV sera activé après ses derniers contrôles de sécurité.</p>
+    <h3>Mon catalogue</h3>
+    <p class="muted">Uniquement les contenus des sources autorisées. La lecture vidéo reste désactivée.</p>
+    <select id="kind" aria-label="Type de contenu"><option value="live">Chaînes</option><option value="movie">Films</option><option value="episode">Épisodes</option></select>
+    <button type="button" id="load-catalogue">Afficher les contenus</button>
+    <p id="catalogue-status" class="muted" role="status"></p>
+    <ul id="catalogue-items"></ul>
+    <h3>Mes appareils</h3>
+    <ul id="devices"><li>Chargement…</li></ul>
+    <form id="pair-form">
+      <label for="pair-code">Associer une Android TV</label>
+      <p class="muted">Saisissez le code à 6 chiffres affiché sur votre télévision.</p>
+      <input id="pair-code" name="code" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" placeholder="123456" required>
+      <button type="submit" id="pair-submit">Associer la TV</button>
+    </form>
+    <button type="button" id="logout">Se déconnecter</button>
+  </section>
+  <p id="message" role="status" aria-live="polite"></p>
+  <p class="muted footer">Nels TV · Accès personnel sécurisé · Service en préparation</p>
+</main>
+<script>
+'use strict';
+(() => {
+  const form=document.getElementById('login');
+  const identity=document.getElementById('identity');
+  const session=document.getElementById('session');
+  const message=document.getElementById('message');
+  const devices=document.getElementById('devices');
+  const submit=document.getElementById('submit');
+  const pairForm=document.getElementById('pair-form');
+  const pairSubmit=document.getElementById('pair-submit');
+  let token=null;
+  function notice(text,ok=false){message.textContent=text;message.classList.toggle('ok',ok);}
+  async function call(url,options={}){
+    const headers={'Accept':'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})};
+    const response=await fetch(url,{...options,headers,cache:'no-store',credentials:'omit',redirect:'error'});
+    let body={};
+    try{body=await response.json();}catch(_){}
+    return {status:response.status,body};
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();submit.disabled=true;notice('');
+    try{
+      const email=document.getElementById('email').value.trim();
+      const password=document.getElementById('password').value;
+      const result=await call('/api/identity/login',{method:'POST',body:JSON.stringify({email,password})});
+      document.getElementById('password').value='';
+      if(result.status===404){notice('La connexion n’est pas encore activée sur ce serveur.');return;}
+      if(result.status===429){notice('Trop de tentatives. Réessayez plus tard.');return;}
+      if(result.status!==200 || !/^[a-f0-9]{64}$/.test(result.body.access_token||'')){notice('Connexion impossible. Vérifiez vos identifiants.');return;}
+      token=result.body.access_token;
+      identity.style.display='none';session.style.display='block';
+      notice('Vous êtes connecté.',true);
+      await refreshDevices();
+    }catch(_){notice('Impossible de joindre le service de connexion.');}
+    finally{submit.disabled=false;}
+  });
+  async function refreshDevices(){
+    const list=await call('/api/devices',{method:'GET'});
+    devices.replaceChildren();
+    if(list.status===401){token=null;session.style.display='none';identity.style.display='block';notice('Session expirée. Reconnectez-vous.');return;}
+    if(list.status!==200 || !Array.isArray(list.body.items)){
+      const li=document.createElement('li');li.textContent='Liste des appareils indisponible.';devices.append(li);return;
+    }
+    if(!list.body.items.length){const li=document.createElement('li');li.textContent='Aucun appareil associé.';devices.append(li);}
+    for(const item of list.body.items){
+      const li=document.createElement('li');li.className='device-item';
+      const label=document.createElement('span');label.className='device-name';label.textContent=String(item.device_name||'Appareil');
+      const remove=document.createElement('button');remove.type='button';remove.textContent='Révoquer';remove.setAttribute('aria-label','Révoquer '+label.textContent);
+      remove.addEventListener('click',async()=>{
+        if(!window.confirm('Retirer cet appareil de votre compte ?'))return;
+        remove.disabled=true;
+        try{
+          const result=await call('/api/devices/'+encodeURIComponent(String(item.id)),{method:'DELETE'});
+          if(result.status===200){notice('Appareil révoqué.',true);await refreshDevices();}
+          else notice('Révocation impossible.');
+        }catch(_){notice('Connexion indisponible.');}finally{remove.disabled=false;}
+      });
+      li.append(label,remove);devices.append(li);
+    }
+  }
+  pairForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const code=document.getElementById('pair-code').value.trim();
+    if(!/^[0-9]{6}$/.test(code)){notice('Code TV invalide.');return;}
+    pairSubmit.disabled=true;
+    try{
+      const result=await call('/api/devices/pair/approve',{method:'POST',body:JSON.stringify({code})});
+      if(result.status===200){document.getElementById('pair-code').value='';notice('TV associée. Finalisez l’association sur votre téléviseur.',true);await refreshDevices();}
+      else if(result.status===429){notice('Trop de tentatives. Réessayez plus tard.');}
+      else notice('Code incorrect ou expiré.');
+    }catch(_){notice('Connexion indisponible.');}finally{pairSubmit.disabled=false;}
+  });
+  document.getElementById('load-catalogue').addEventListener('click',async()=>{
+    const button=document.getElementById('load-catalogue');
+    const status=document.getElementById('catalogue-status');
+    const items=document.getElementById('catalogue-items');
+    button.disabled=true;status.textContent='Chargement…';items.replaceChildren();
+    try {
+      const kind=document.getElementById('kind').value;
+      const response=await call('/api/v1/me/library?kind='+encodeURIComponent(kind)+'&limit=30',{method:'GET'});
+      if(response.status===401){status.textContent='Session expirée : reconnectez-vous.';return;}
+      if(response.status!==200 || !Array.isArray(response.body.items)){status.textContent='Catalogue indisponible pour le moment.';return;}
+      status.textContent=String(response.body.total||0)+' contenu(s) accessibles.';
+      for(const entry of response.body.items){
+        const li=document.createElement('li');
+        li.textContent=String(entry.name||'Sans titre');
+        items.append(li);
+      }
+    }catch(_){status.textContent='Impossible de charger le catalogue.';}
+    finally{button.disabled=false;}
+  });
+  document.getElementById('logout').addEventListener('click',async()=>{
+    try{if(token)await call('/api/identity/logout',{method:'POST'});}catch(_){}
+    token=null;session.style.display='none';identity.style.display='block';devices.replaceChildren();notice('Vous êtes déconnecté.',true);
+  });
+  window.addEventListener('pagehide',()=>{token=null;});
+})();
+</script>
+</body>
+</html>

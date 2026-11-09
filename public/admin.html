@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nels TV — Sources</title><style>
+:root{font-family:system-ui;color:#eaf2fc;background:#101827}*{box-sizing:border-box}
+body{max-width:1000px;margin:48px auto;padding:0 24px}h1{font-size:30px}
+p{color:#a8b6c8}.layout{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+section{background:#1c293c;border:1px solid #34455f;border-radius:18px;padding:24px}
+label{display:block;font-size:13px;margin:14px 0 6px;color:#d4e2f2}
+input,select{width:100%;padding:12px;background:#111b2a;border:1px solid #455570;border-radius:8px;color:white}
+button{background:#36b5bf;border:0;border-radius:8px;padding:12px 17px;font-weight:700;cursor:pointer;margin-top:20px}
+small{color:#a8b6c8}.item{border-bottom:1px solid #34455f;padding:15px 0}
+.msg{min-height:22px;margin-top:15px} @media(max-width:720px){.layout{grid-template-columns:1fr}}
+</style></head><body>
+<h1>Nels TV <span style="color:#36b5bf">/ Sources</span></h1><p>Administration des sources IPTV autorisées. Les secrets restent côté serveur.</p>
+<label for="token">Jeton d'administration (conservé uniquement en mémoire sur cette page)</label><input id="token" type="password" autocomplete="off" placeholder="IPTV_ADMIN_TOKEN">
+<section><h2>Importer un fichier M3U / M3U8</h2><form id="upload"><label for="uploadName">Nom du bouquet</label><input id="uploadName" required value="Ma playlist"><label for="playlistFile">Choisir un fichier M3U</label><input id="playlistFile" type="file" accept=".m3u,.m3u8,text/plain" required><button type="submit">Importer mon fichier</button><div id="uploadMessage" class="msg" role="status"></div></form></section><div class="layout"><section><h2>Ajouter une source</h2><form id="create">
+<label for="name">Nom</label><input id="name" required maxlength="150" placeholder="Mon bouquet">
+<label for="kind">Mode d'import</label><select id="kind"><option value="m3u">M3U / M3U8</option><option value="xtream">Xtream Codes</option><option value="mag">MAG / MAC</option></select>
+<label for="endpoint">URL serveur ou playlist</label><input id="endpoint" required type="url" placeholder="https://...">
+<div id="xtream" hidden><label for="username">Identifiant</label><input id="username"><label for="password">Mot de passe</label><input id="password" type="password"></div>
+<div id="mag" hidden><label for="mac">MAC autorisée</label><input id="mac" placeholder="00:1A:79:XX:XX:XX"></div>
+<button type="submit">Enregistrer la source</button><div class="msg" id="msg" role="status"></div></form>
+</section><section><h2>Sources enregistrées</h2><button id="refresh" type="button">Actualiser</button><div id="sources"><small>Saisis le jeton puis actualise.</small></div></section></div><section><h2>Suivi des imports</h2><div id="jobs">Aucun import</div></section>
+<p><small>Les fichiers M3U sont importés par le worker. Les sources M3U et Xtream distantes sont synchronisées si leur serveur est autorisé ; le connecteur MAG reste à développer.</small></p>
+<script>
+const $=id=>document.getElementById(id);
+function toggle(){ $('xtream').hidden=$('kind').value!=='xtream';$('mag').hidden=$('kind').value!=='mag'; }
+$('kind').addEventListener('change',toggle);
+async function parseApiResponse(res){
+ const raw=await res.text();
+ let value;
+ try {value=JSON.parse(raw);}
+ catch {
+   const preview=raw.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
+   throw new Error('Réponse non JSON (HTTP '+res.status+'). Vérifie les migrations PostgreSQL et les logs du serveur. '+preview);
+ }
+ if(!res.ok)throw new Error(value.error||value.message||'Erreur HTTP '+res.status);
+ return value;
+}
+async function api(method,path,data){
+ const res=await fetch('/api/'+path,{method,headers:{'X-Admin-Token':$('token').value,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});
+ return parseApiResponse(res);
+}
+async function jobs(){
+ try {let data=await api('GET','imports');$('jobs').replaceChildren();
+ for(let j of data.items){let el=document.createElement('div');el.className='item';el.textContent=j.name+' · '+j.method+' · '+j.status;$('jobs').append(el);}
+ }catch(e){$('jobs').textContent=e.message;}
+}
+$('upload').addEventListener('submit',async e=>{
+ e.preventDefault();const file=$('playlistFile').files[0];if(!file)return;
+ const form=new FormData();form.append('file',file);form.append('name',$('uploadName').value);
+ $('uploadMessage').textContent='Envoi du fichier…';
+ try{const res=await fetch('/api/imports/upload',{method:'POST',headers:{'X-Admin-Token':$('token').value},body:form});
+ const data=await parseApiResponse(res);
+ $('uploadMessage').textContent='Fichier reçu. Import #'+data.job_id+' en attente du worker.';await jobs();await refresh();
+ }catch(err){$('uploadMessage').textContent=err.message;}
+});
+setInterval(()=>{if($('token').value)jobs();},5000);
+async function refresh(){
+ $('sources').textContent='Chargement…';
+ try{const rows=await api('GET','sources');$('sources').replaceChildren();
+ for(const item of rows){const el=document.createElement('div');el.className='item';const title=document.createElement('strong');title.textContent=item.name;const details=document.createElement('p');details.textContent=item.kind.toUpperCase()+' · '+item.status+' · #'+item.id;el.append(title,details);$('sources').append(el);}
+ if(rows.length===0)$('sources').textContent='Aucune source.';
+ }catch(e){$('sources').textContent=e.message;}
+}
+$('refresh').addEventListener('click',refresh);
+$('create').addEventListener('submit',async e=>{
+ e.preventDefault();$('msg').textContent='';
+ const payload={name:$('name').value,kind:$('kind').value,endpoint:$('endpoint').value};
+ if(payload.kind==='xtream'){payload.username=$('username').value;payload.password=$('password').value;}
+ if(payload.kind==='mag'){payload.mac=$('mac').value;}
+ try{await api('POST','sources',payload);$('msg').textContent='Source enregistrée.';$('create').reset();toggle();await refresh();await jobs();}
+ catch(err){$('msg').textContent=err.message;}
+});
+</script></body></html>
