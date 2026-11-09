@@ -7,18 +7,62 @@ h1{font-size:24px}button,input{background:#243550;border:1px solid #57708c;borde
 #banner{transition:opacity .25s ease}#banner.hidden{opacity:0;pointer-events:none}#banner strong{font-size:28px}#screen:fullscreen{border:0;border-radius:0;aspect-ratio:auto;width:100vw;height:100vh;padding:4vw}#screen:fullscreen #banner{max-width:min(700px,85vw)}#digits{font-variant-numeric:tabular-nums;position:absolute;top:20px;right:25px;background:#081321e8;padding:10px 16px;border-radius:9px;font-size:24px;font-weight:bold}#digits[hidden],#guide[hidden],#multiGuide[hidden]{display:none}#remoteHelp{color:#b7d2e1;font-size:14px}#now{color:#b7d2e1;margin-top:8px}#status{position:absolute;top:20px;left:25px;color:#90bbca}
 .controls{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}.controls button{font-weight:bold}
 #navigation{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}#navigation input{min-width:150px}#search{flex:1;min-width:200px}#matches{color:#b7d2e1}#guide{margin-top:25px;padding:18px;background:#101e2e;border:1px solid #36546c;border-radius:14px}#guide header{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}#guide h2{margin:0}#guide li{margin:8px 0;padding:12px;background:#142438;border-radius:8px;list-style:none}#programmes{padding:0}#programmes li.current{border-left:5px solid #55c7d0}#guide .time{color:#a5c9d8;font-size:14px}#guide .description{color:#c0d0dc;font-size:14px;margin-top:7px}#nowNext{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}#nowNext article{background:#172a40;padding:14px;border-radius:10px;min-width:0}#nowNext h3{font-size:15px;margin:0 0 8px;color:#a9d8ed}#nowNext strong{display:block;overflow-wrap:anywhere}#nowNext small{display:block;color:#bed0da;margin-top:5px}#progress,#bannerProgress{width:100%;height:9px;accent-color:#55c7d0;margin-top:10px}#bannerProgress[hidden]{display:none}#guideNav{display:flex;flex-wrap:wrap;gap:8px}#guideState{color:#a9d8ed}@media(max-width:650px){#nowNext{grid-template-columns:1fr}}
-#desktopPlayer{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,310px);gap:16px;align-items:start}#playerColumn{min-width:0}#channelSidebar{background:#101e2e;border:1px solid #36546c;border-radius:14px;padding:14px;min-width:0}#channelSidebar h2{font-size:18px;margin:0 0 12px}#channelSidebar ol{list-style:none;padding:0;margin:12px 0;display:grid;gap:5px;max-height:520px;overflow-y:auto;overscroll-behavior:contain}#channelSidebar li button{display:block;width:100%;text-align:left;padding:10px;background:#192b40;border:1px solid transparent}#channelSidebar li button[aria-current="true"]{background:#244760;border-color:#6dc9dc}#channelSidebar li button:hover{background:#29415b}#channelSidebar li small{display:block;color:#bdd2e0;margin-top:3px}#sidebarPaging{display:flex;gap:7px;align-items:center;justify-content:space-between}#sidebarPaging button{padding:8px}#sidebarCount{font-size:13px;color:#b8cedc}#sidebarSearch{width:100%;min-width:0}#sidebarPanelLabel{display:block;margin:0 0 8px}#playbackActions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center}#playbackActions label{display:inline-flex;gap:6px;align-items:center}#quality{background:#243550;border:1px solid #57708c;border-radius:8px;color:white;padding:9px;max-width:200px}#quality:disabled{opacity:.6}#connectionState{padding:5px 10px;border-radius:16px;background:#182c40;border:1px solid #466078;font-size:13px}#connectionState[data-state="playing"]{border-color:#4a9b82}#connectionState[data-state="error"]{border-color:#cc7979}#connectionState[data-state="recovering"]{border-color:#d5ab64}#playbackDiagnostics{font-size:13px;color:#bdd0db;flex-basis:100%}#retryPlayback[hidden]{display:none}#multiGuide{margin-top:24px;border:1px solid #36546c;background:#101e2e;border-radius:14px;padding:18px}#multiGuide header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}#multiGuide h2{margin:0}#multiGuideControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#gridSummary{color:#bbd3e5;font-size:14px}#gridRows{margin-top:14px;display:grid;gap:8px}#gridRows .gridRow{display:grid;grid-template-columns:minmax(170px,27%) minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch}#gridRows .gridCell{padding:12px;border:1px solid #39536d;border-radius:9px;background:#16273a;min-width:0;text-align:left;overflow-wrap:anywhere}#gridRows button.gridCell{cursor:pointer}#gridRows button.gridCell:hover{background:#243c56}#gridRows button.gridCell:focus-visible{outline:3px solid #70e7df;outline-offset:2px}#gridRows .onair{border-left:4px solid #55c7d0}#gridRows .selected{background:#244760}#gridRows .gridCell small{display:block;color:#b8cedc;margin-top:6px}#gridRows progress{width:100%;height:7px;accent-color:#55c7d0;margin-top:8px}#gridRows .gridHead{font-size:13px;color:#b7ccdc;font-weight:bold;padding:4px 12px}#multiGuide[aria-busy="true"] #gridSummary{opacity:.8}@media(max-width:920px){#desktopPlayer{grid-template-columns:1fr}#channelSidebar ol{max-height:300px}}@media(max-width:700px){main{padding:12px}.screen{padding:14px}#banner strong{font-size:21px}#gridRows .gridRow{grid-template-columns:1fr 1fr}#gridRows .gridCell:first-child{grid-column:1/-1}#gridRows .gridHead:first-child{grid-column:1/-1}#multiGuide{padding:10px}#multiGuideControls button{padding:9px}}</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head>
+#desktopPlayer{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,310px);gap:16px;align-items:start}#playerColumn{min-width:0}#channelSidebar{background:#101e2e;border:1px solid #36546c;border-radius:14px;padding:14px;min-width:0}#channelSidebar h2{font-size:18px;margin:0 0 12px}#channelSidebar ol{list-style:none;padding:0;margin:12px 0;display:grid;gap:5px;max-height:520px;overflow-y:auto;overscroll-behavior:contain}#channelSidebar li button{display:block;width:100%;text-align:left;padding:10px;background:#192b40;border:1px solid transparent}#channelSidebar li button[aria-current="true"]{background:#244760;border-color:#6dc9dc}#channelSidebar li button:hover{background:#29415b}#channelSidebar li small{display:block;color:#bdd2e0;margin-top:3px}#sidebarPaging{display:flex;gap:7px;align-items:center;justify-content:space-between}#sidebarPaging button{padding:8px}#sidebarCount{font-size:13px;color:#b8cedc}#sidebarSearch{width:100%;min-width:0}#sidebarPanelLabel{display:block;margin:0 0 8px}#playbackActions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center}#playbackActions label{display:inline-flex;gap:6px;align-items:center}#quality{background:#243550;border:1px solid #57708c;border-radius:8px;color:white;padding:9px;max-width:200px}#quality:disabled{opacity:.6}#connectionState{padding:5px 10px;border-radius:16px;background:#182c40;border:1px solid #466078;font-size:13px}#connectionState[data-state="playing"]{border-color:#4a9b82}#connectionState[data-state="error"]{border-color:#cc7979}#connectionState[data-state="recovering"]{border-color:#d5ab64}#playbackDiagnostics{font-size:13px;color:#bdd0db;flex-basis:100%}#retryPlayback[hidden]{display:none}#multiGuide{margin-top:24px;border:1px solid #36546c;background:#101e2e;border-radius:14px;padding:18px}#multiGuide header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}#multiGuide h2{margin:0}#multiGuideControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}#gridSummary{color:#bbd3e5;font-size:14px}#gridRows{margin-top:14px;display:grid;gap:8px}#gridRows .gridRow{display:grid;grid-template-columns:minmax(170px,27%) minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:stretch}#gridRows .gridCell{padding:12px;border:1px solid #39536d;border-radius:9px;background:#16273a;min-width:0;text-align:left;overflow-wrap:anywhere}#gridRows button.gridCell{cursor:pointer}#gridRows button.gridCell:hover{background:#243c56}#gridRows button.gridCell:focus-visible{outline:3px solid #70e7df;outline-offset:2px}#gridRows .onair{border-left:4px solid #55c7d0}#gridRows .selected{background:#244760}#gridRows .gridCell small{display:block;color:#b8cedc;margin-top:6px}#gridRows progress{width:100%;height:7px;accent-color:#55c7d0;margin-top:8px}#gridRows .gridHead{font-size:13px;color:#b7ccdc;font-weight:bold;padding:4px 12px}#multiGuide[aria-busy="true"] #gridSummary{opacity:.8}@media(max-width:920px){#desktopPlayer{grid-template-columns:1fr}#channelSidebar ol{max-height:300px}}@media(max-width:700px){main{padding:12px}.screen{padding:14px}#banner strong{font-size:21px}#gridRows .gridRow{grid-template-columns:1fr 1fr}#gridRows .gridCell:first-child{grid-column:1/-1}#gridRows .gridHead:first-child{grid-column:1/-1}#multiGuide{padding:10px}#multiGuideControls button{padding:9px}}
+/* Decoder on-screen menu lives inside #screen, so it stays available in fullscreen. */
+#screenMenuButton{position:absolute;right:18px;top:18px;z-index:3;border:1px solid var(--ns-accent,#66dcca);background:var(--ns-surface,#172b3a);color:#fff;font-size:14px;padding:9px 13px;box-shadow:0 6px 20px #0008}
+#decoderMenu[hidden]{display:none!important}
+#decoderMenu{position:absolute;inset:0;z-index:9;display:flex;justify-content:flex-end;align-items:stretch;background:linear-gradient(90deg,#03080ecc,#03080e90);color:var(--ns-text,#fff)}
+#decoderPanel{display:flex;flex-direction:column;gap:10px;width:min(490px,100%);min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;background:var(--ns-surface,#172b3a);border-left:4px solid var(--ns-accent,#66dcca);padding:clamp(12px,1.7vw,24px);box-shadow:-12px 0 42px #000b}
+#decoderPanel:focus{outline:none}
+#decoderPanel h2{margin:0;font-size:clamp(19px,2.5vw,28px)}
+#decoderPanel .menuTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#decoderPanel .menuFields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#decoderPanel .menuFields label{display:grid;gap:4px;font-size:13px;color:var(--ns-muted,#cde)}
+#decoderPanel select,#decoderPanel input[type="search"]{width:100%;min-width:0;padding:9px;border-radius:7px}
+#decoderPanel .menuFavorites{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px}
+#decoderPanel #menuList{list-style:none;margin:0;padding:0;display:grid;gap:5px;min-height:0;overflow:auto}
+#decoderPanel #menuList button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:9px 11px;border:1px solid var(--ns-border,#466);border-radius:7px;min-height:43px}
+#decoderPanel #menuList button[aria-selected="true"]{border:2px solid var(--ns-accent,#66dcca);background:var(--ns-surface-alt,#28455e)}
+#decoderPanel #menuList .menuCurrent{font-size:12px;color:var(--ns-muted,#cde)}
+#decoderPanel .menuPage{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+#decoderPanel .menuPage button{padding:7px 10px}
+#decoderPanel #menuProgram{background:var(--ns-surface-alt,#28455e);padding:11px;border:1px solid var(--ns-border,#466);border-radius:8px;font-size:13px}
+#decoderPanel #menuProgram h3{font-size:14px;margin:0 0 6px}
+#decoderPanel #menuProgram p{margin:4px 0;color:var(--ns-text,#fff);overflow-wrap:anywhere}
+#decoderPanel #menuTune{background:var(--ns-accent,#66dcca);color:var(--ns-bg,#071723);font-weight:750;padding:12px}
+#decoderPanel #menuTune:disabled{opacity:.4;cursor:not-allowed}
+html[data-theme="mediasat"] #decoderPanel{border-left:0;border-top:7px solid var(--ns-accent);border-radius:0}
+html[data-theme="mediasat"] #decoderPanel #menuList button{border-radius:0}
+html[data-theme="tps"] #decoderPanel{border-left:0;border-bottom:7px solid var(--ns-accent);border-radius:16px 0 0 16px}
+html[data-theme="tps"] #decoderPanel #menuList button{border-radius:3px 13px 3px 13px}
+@media(max-width:700px){#decoderPanel{width:100%;padding:10px;gap:7px}#decoderPanel h2{font-size:18px}#decoderPanel #menuList button{min-height:38px;padding:6px 10px}#decoderPanel .menuFields{grid-template-columns:1fr 1fr}#screenMenuButton{right:8px;top:8px;padding:6px 9px}#decoderPanel #menuProgram{padding:6px}}
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head>
 <body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/home.html" style="color:#7cd4e3">Accueil</a> · <a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a></span></header>
 <div class="controls"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Mot de passe <input id="password" type="password" autocomplete="current-password"></label><button id="login">Connexion Nels TV</button></div>
 <details><summary>Accès administrateur local (ancien mode)</summary><label>Jeton local <input id="token" type="password" autocomplete="off"></label></details><button id="load">Ouvrir le bouquet</button>
 <div id="navigation"><label>Rechercher <input id="search" type="search" placeholder="Nom ou catégorie" aria-label="Rechercher une chaîne"></label><label>Numéro <input id="channelNumber" type="number" min="1" max="99999" placeholder="Ex. 12" aria-label="Numéro de chaîne"></label><button id="goNumber">Aller</button><button id="favoritesOnly" type="button" aria-pressed="false">☆ Toutes les chaînes</button><span id="matches" role="status"></span></div>
-<div id="desktopPlayer"><div id="playerColumn"><div class="screen" id="screen"><video id="video" playsinline controls aria-label="Chaîne en direct"></video><p id="status" role="status">Choisis une chaîne pour commencer</p><output id="digits" hidden aria-live="polite"></output><div id="banner" aria-live="off"><div class="ns-onair"><span>NSatellite</span><span class="ns-theme-signature" aria-hidden="true"></span></div><div id="number">—</div><strong id="name">Aucune chaîne</strong><div id="now">Sélectionne une chaîne</div><progress id="bannerProgress" max="100" value="0" hidden aria-label="Progression du programme en cours"></progress></div></div>
+<div id="desktopPlayer"><div id="playerColumn"><div class="screen" id="screen"><video id="video" playsinline controls aria-label="Chaîne en direct"></video><p id="status" role="status">Choisis une chaîne pour commencer</p><output id="digits" hidden aria-live="polite"></output><div id="banner" aria-live="off"><div class="ns-onair"><span>NSatellite</span><span class="ns-theme-signature" aria-hidden="true"></span></div><div id="number">—</div><strong id="name">Aucune chaîne</strong><div id="now">Sélectionne une chaîne</div><progress id="bannerProgress" max="100" value="0" hidden aria-label="Progression du programme en cours"></progress></div><button id="screenMenuButton" type="button" aria-controls="decoderMenu" aria-expanded="false">☰ Chaînes</button>
+<div id="decoderMenu" hidden role="dialog" aria-label="Navigation dans le bouquet">
+ <div id="decoderPanel" tabindex="-1">
+  <div class="menuTop"><h2>Chaînes & programmes</h2><button id="menuClose" type="button" aria-label="Fermer le menu">Fermer ×</button></div>
+  <div class="menuFields">
+   <label for="menuCategory">Catégorie<select id="menuCategory"><option value="">Toutes les catégories</option></select></label>
+   <label for="menuSearch">Rechercher<input id="menuSearch" type="search" placeholder="Nom ou numéro" autocomplete="off"></label>
+  </div>
+  <label class="menuFavorites"><input id="menuFavorites" type="checkbox"> Uniquement mes favoris</label>
+  <small id="menuCount" role="status">Charge le bouquet pour naviguer.</small><small>↑ ↓ chaînes · ← → catégories · Entrée regarder · Retour fermer</small>
+  <ul id="menuList" aria-label="Chaînes disponibles"></ul>
+  <div class="menuPage"><button id="menuPrev" type="button">← Précédentes</button><span id="menuPage">Page 1</span><button id="menuNext" type="button">Suivantes →</button></div>
+  <div id="menuProgram"><h3>Programme TV</h3><p id="menuNow">Choisis une chaîne.</p><p id="menuNextProgramme"></p></div>
+  <button id="menuTune" type="button" disabled>Regarder cette chaîne</button>
+ </div>
+</div></div>
 <div id="playbackActions"><button id="retryPlayback" hidden type="button">Réessayer la chaîne</button><span id="playbackHint" role="status" aria-live="polite"></span><span id="connectionState" data-state="idle" role="status">En attente</span><label for="quality">Qualité <select id="quality" disabled><option value="-1">Automatique</option></select></label><small id="playbackDiagnostics" aria-live="polite">Diagnostic : aucune lecture en cours</small></div></div><aside id="channelSidebar" aria-label="Liste des chaînes"><h2>Chaînes du bouquet</h2><label id="sidebarPanelLabel" for="sidebarSearch">Rechercher dans la liste</label><input id="sidebarSearch" type="search" placeholder="Chaîne ou catégorie" autocomplete="off"><p id="sidebarCount" role="status">Charge ton bouquet pour naviguer.</p><ol id="sidebarList"></ol><div id="sidebarPaging"><button id="sidebarPrev" type="button">←</button><span id="sidebarPage">Page 1</span><button id="sidebarNext" type="button">→</button></div></aside></div>
-<div class="controls"><button id="previous" aria-label="Chaîne précédente">CH −</button><button id="next" aria-label="Chaîne suivante">CH +</button><button id="guideButton" aria-expanded="false" aria-controls="guide">Afficher le guide</button><button id="multiGuideButton" type="button" aria-expanded="false" aria-controls="multiGuide">Grille TV multichaîne</button><button id="fullscreen" type="button">Plein écran</button><button id="toggleMute" type="button" aria-pressed="false">Couper le son</button><button id="showBanner" type="button">Infos chaîne</button><span id="info">Utilise ↑ ↓ pour zapper</span></div><p id="remoteHelp">Télécommande : ↑ ↓ pour zapper · chiffres puis Entrée pour sélectionner · I : infos · G : guide · F : plein écran · M : son · Échap : fermer.</p><section id="guide" hidden aria-label="Guide des programmes"><p class="ns-guide-kicker">Programmation · Émissions</p><header><h2>Guide TV · <span id="guideChannel">Chaîne</span></h2><div id="guideNav"><button id="guidePrevious" type="button">← Chaîne</button><button id="guideNext" type="button">Chaîne →</button><button id="guideRefresh" type="button">Actualiser</button></div></header><p id="guideState" role="status">Ouvre un bouquet pour consulter les programmes.</p><div id="nowNext"><article><h3>En ce moment</h3><strong id="currentTitle">Non renseigné</strong><small id="currentTime"></small><progress id="progress" max="100" value="0" aria-label="Progression du programme"></progress><small id="progressText"></small></article><article><h3>À suivre</h3><strong id="nextTitle">Non renseigné</strong><small id="nextTime"></small></article></div><h3>Programmes à venir</h3><ul id="programmes"></ul></section>
+<div class="controls"><button id="previous" aria-label="Chaîne précédente">CH −</button><button id="next" aria-label="Chaîne suivante">CH +</button><button id="guideButton" aria-expanded="false" aria-controls="guide">Afficher le guide</button><button id="multiGuideButton" type="button" aria-expanded="false" aria-controls="multiGuide">Grille TV multichaîne</button><button id="fullscreen" type="button">Plein écran</button><button id="decoderMenuButton" type="button" aria-controls="decoderMenu" aria-expanded="false">Menu décodeur</button><button id="toggleMute" type="button" aria-pressed="false">Couper le son</button><button id="showBanner" type="button">Infos chaîne</button><span id="info">Utilise ↑ ↓ pour zapper</span></div><p id="remoteHelp">Télécommande : ↑ ↓ pour zapper · chiffres puis Entrée pour sélectionner · I : infos · G : guide · F : plein écran · M : son · O : menu des chaînes · Échap : fermer.</p><section id="guide" hidden aria-label="Guide des programmes"><p class="ns-guide-kicker">Programmation · Émissions</p><header><h2>Guide TV · <span id="guideChannel">Chaîne</span></h2><div id="guideNav"><button id="guidePrevious" type="button">← Chaîne</button><button id="guideNext" type="button">Chaîne →</button><button id="guideRefresh" type="button">Actualiser</button></div></header><p id="guideState" role="status">Ouvre un bouquet pour consulter les programmes.</p><div id="nowNext"><article><h3>En ce moment</h3><strong id="currentTitle">Non renseigné</strong><small id="currentTime"></small><progress id="progress" max="100" value="0" aria-label="Progression du programme"></progress><small id="progressText"></small></article><article><h3>À suivre</h3><strong id="nextTitle">Non renseigné</strong><small id="nextTime"></small></article></div><h3>Programmes à venir</h3><ul id="programmes"></ul></section>
 <section id="multiGuide" hidden aria-label="Grille des programmes multichaîne" aria-busy="false"><p class="ns-guide-kicker">Guide électronique des programmes</p><header><h2>Grille TV · Toutes les chaînes</h2><div id="multiGuideControls"><button id="gridPrev" type="button">← Précédentes</button><span id="gridPage">Page 1</span><button id="gridNext" type="button">Suivantes →</button><button id="gridRefresh" type="button">Actualiser</button></div></header><p id="gridSummary" role="status">Ouvre ton bouquet pour afficher le guide multichaîne.</p><div id="gridRows" aria-label="Programmes actuels et suivants"></div></section>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='',favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0;
+const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='',favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0;
 function authHeaders(){return userToken?{'Authorization':'Bearer '+userToken}:{'X-Admin-Token':$('token').value};}
 async function get(path){let r=await fetch('/api/'+path,{headers:authHeaders()});let data=await r.json();if(!r.ok)throw Error(data.error||'Erreur');return data;}
 function isFavorite(c){return c.favorite===true||c.favorite===1||c.favorite==='1';}
@@ -56,10 +100,102 @@ function showPlaybackError(message){
  $('status').textContent=message;$('playbackHint').textContent='La lecture a échoué. Tu peux réessayer ou changer de chaîne.';
  $('retryPlayback').hidden=false;
 }
+const MENU_PAGE_SIZE=8;
+function menuOptions(){
+ const select=$('menuCategory'),selected=select.value;
+ const names=[...new Set(channels.map(c=>String(c.group_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+ select.replaceChildren(new Option('Toutes les catégories',''),...names.map(name=>new Option(name,name)));
+ select.value=names.includes(selected)?selected:'';
+}
+function menuFilter(){
+ const category=$('menuCategory').value,query=$('menuSearch').value.trim().toLocaleLowerCase('fr');
+ const favorites=$('menuFavorites').checked;
+ return channels.map((c,i)=>({c,i})).filter(({c})=>
+  (!category||String(c.group_name||'').trim()===category)&&(!favorites||isFavorite(c))&&
+  (!query||(c.name+' '+(c.channel_number??'')).toLocaleLowerCase('fr').includes(query))
+ ).map(({i})=>i);
+}
+function updateMenuPreview(){
+ const channel=channels[menuCandidates[menuCursor]],id=channel?.id;
+ if(id===menuPreviewId)return;
+ menuPreviewId=id;
+ clearTimeout(menuPreviewTimer);
+ const serial=++menuPreviewSerial;
+ $('menuNow').textContent=channel?'Programme en cours : recherche…':'Aucune chaîne sélectionnée';
+ $('menuNextProgramme').textContent='';
+ if(!channel)return;
+ menuPreviewTimer=setTimeout(async()=>{
+  if($('decoderMenu').hidden||serial!==menuPreviewSerial)return;
+  try{
+   const cached=gridCache.get(String(id));
+   const data=cached&&Date.now()-cached.time<120000?cached.items:(await get('epg/channel/'+encodeURIComponent(id))).items;
+   if(serial!==menuPreviewSerial||$('decoderMenu').hidden)return;
+   if(!Array.isArray(data))throw Error('EPG invalide');
+   const {current,next}=epgPreview(data);
+   $('menuNow').textContent=current?'En cours : '+current.title+' · '+programmeRange(current):'Pas de programme en cours';
+   $('menuNextProgramme').textContent=next?'À suivre : '+next.title+' · '+programmeRange(next):'';
+  }catch{
+   if(serial===menuPreviewSerial&&!$('decoderMenu').hidden)$('menuNow').textContent='Programme indisponible';
+  }
+ },350);
+}
+function paintMenu(){
+ if($('decoderMenu').hidden)return;
+ const count=menuCandidates.length,pages=Math.max(1,Math.ceil(count/MENU_PAGE_SIZE));
+ menuCursor=Math.max(0,Math.min(menuCursor,Math.max(0,count-1)));
+ const page=Math.floor(menuCursor/MENU_PAGE_SIZE);
+ $('menuPage').textContent='Page '+(page+1)+' / '+pages;
+ $('menuCount').textContent=count+' chaîne(s) dans cette sélection · ↑ ↓ pour parcourir';
+ $('menuPrev').disabled=page===0;
+ $('menuNext').disabled=page>=pages-1;
+ $('menuTune').disabled=count===0;
+ const fragment=document.createDocumentFragment();
+ menuCandidates.slice(page*MENU_PAGE_SIZE,(page+1)*MENU_PAGE_SIZE).forEach((channelIndex,offset)=>{
+  const position=page*MENU_PAGE_SIZE+offset,c=channels[channelIndex],li=document.createElement('li'),button=document.createElement('button');
+  button.type='button';button.setAttribute('aria-selected',String(position===menuCursor));
+  const name=document.createElement('span');name.textContent=(c.channel_number??'—')+' · '+c.name;
+  button.append(name);
+  if(index===channelIndex){const playing=document.createElement('span');playing.className='menuCurrent';playing.textContent='EN DIRECT';button.append(playing);}
+  button.onclick=()=>{menuCursor=position;paintMenu();tuneMenuChannel();};
+  li.append(button);fragment.append(li);
+ });
+ $('menuList').replaceChildren(fragment);
+ const active=$('menuList').querySelector('[aria-selected="true"]');
+ if(active)active.scrollIntoView({block:'nearest'});
+ updateMenuPreview();
+}
+function rebuildMenu(){
+ menuCandidates=menuFilter();
+ const currentPosition=menuCandidates.indexOf(index);
+ menuCursor=currentPosition>=0?currentPosition:0;
+ menuPreviewId=null;paintMenu();
+}
+function moveMenuCursor(offset){
+ if(!menuCandidates.length)return;
+ menuCursor=Math.max(0,Math.min(menuCandidates.length-1,menuCursor+offset));
+ paintMenu();
+}
+function switchMenuCategory(direction){
+ const select=$('menuCategory');if(!select.options.length)return;
+ const next=Math.max(0,Math.min(select.options.length-1,select.selectedIndex+direction));
+ if(next!==select.selectedIndex){select.selectedIndex=next;rebuildMenu();}
+}
+function tuneMenuChannel(){
+ const selectedIndex=menuCandidates[menuCursor];if(selectedIndex===undefined)return;
+ setMenuOpen(false);if(index!==selectedIndex){index=selectedIndex;render();}else showBanner();
+}
+function setMenuOpen(open){
+ const menu=$('decoderMenu');
+ if(open&&!channels.length){$('info').textContent='Charge d’abord un bouquet pour ouvrir le menu.';return;}
+ menu.hidden=!open;
+ for(const id of ['decoderMenuButton','screenMenuButton'])$(id).setAttribute('aria-expanded',String(open));
+ if(!open){clearTimeout(menuPreviewTimer);++menuPreviewSerial;menuPreviewId=null;showBanner();$('screenMenuButton').focus({preventScroll:true});return;}
+ menuOptions();rebuildMenu();$('decoderPanel').focus();
+}
 function showBanner(){clearTimeout(bannerTimeout);$('banner').classList.remove('hidden');bannerTimeout=setTimeout(()=>$('banner').classList.add('hidden'),7000);}
 function clearDigits(){clearTimeout(digitsTimeout);digitsBuffer='';$('digits').hidden=true;$('digits').value='';}
 function pushDigit(digit){digitsBuffer=(digitsBuffer+digit).slice(-5);$('digits').value=digitsBuffer;$('digits').hidden=false;clearTimeout(digitsTimeout);digitsTimeout=setTimeout(()=>{selectNumberValue(Number(digitsBuffer));clearDigits();},1800);}
-function render(){let c=channels[index];if(!c)return;showBanner();try{localStorage.setItem('nels-tv-last-channel',String(c.id));}catch{}updateMatches();syncSidebarSelection();playChannel(c);$('number').textContent=c.channel_number??'—';$('name').textContent=c.name;$('now').textContent=c.group_name||'Télévision en direct';$('programmes').replaceChildren();$('guideChannel').textContent=c.name;loadGuide();}
+function render(){let c=channels[index];if(!c)return;showBanner();try{localStorage.setItem('nels-tv-last-channel',String(c.id));}catch{}updateMatches();syncSidebarSelection();if(!$('decoderMenu').hidden)rebuildMenu();playChannel(c);$('number').textContent=c.channel_number??'—';$('name').textContent=c.name;$('now').textContent=c.group_name||'Télévision en direct';$('programmes').replaceChildren();$('guideChannel').textContent=c.name;loadGuide();}
 function setConnection(state,label,diagnostic=''){
  $('connectionState').dataset.state=state;$('connectionState').textContent=label;
  if(diagnostic)$('playbackDiagnostics').textContent='Diagnostic : '+diagnostic;
@@ -312,8 +448,18 @@ function toggleGuide(){const guide=$('guide');guide.hidden=!guide.hidden;$('guid
 function toggleFullscreen(){if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{$('screen').requestFullscreen?.().catch(()=>{$('info').textContent='Plein écran indisponible';});}}
 function toggleMute(){const video=$('video');video.muted=!video.muted;$('toggleMute').setAttribute('aria-pressed',String(video.muted));$('toggleMute').textContent=video.muted?'Activer le son':'Couper le son';}
 $('login').onclick=async()=>{try{const r=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});const d=await r.json();if(!r.ok)throw Error(d.error||'Connexion impossible');userToken=d.access_token;$('password').value='';$('info').textContent='Compte connecté';await load();}catch(e){$('info').textContent=e.message;}};
-$('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
+$('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
 document.addEventListener('keydown',e=>{
+ if(e.altKey||e.ctrlKey||e.metaKey)return;
+ if(!$('decoderMenu').hidden){
+  if(e.key==='Escape'||e.key==='Backspace'&&!(e.target instanceof HTMLInputElement)){e.preventDefault();setMenuOpen(false);return;}
+  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
+  if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();moveMenuCursor(e.key==='ArrowDown'?1:-1);return;}
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();switchMenuCategory(e.key==='ArrowRight'?1:-1);return;}
+  if(e.key==='Enter'&&!(e.target instanceof HTMLButtonElement)){e.preventDefault();tuneMenuChannel();return;}
+  return;
+ }
+ if(e.key.toLowerCase()==='o'&&!(e.target instanceof HTMLInputElement)&&!(e.target instanceof HTMLSelectElement)){e.preventDefault();setMenuOpen(true);return;}
  if(e.altKey||e.ctrlKey||e.metaKey||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement||e.target?.isContentEditable)return;
  if(/^[0-9]$/.test(e.key)){e.preventDefault();pushDigit(e.key);return;}
  if(e.key==='Enter'&&digitsBuffer){e.preventDefault();selectNumberValue(Number(digitsBuffer));clearDigits();return;}
@@ -322,5 +468,5 @@ document.addEventListener('keydown',e=>{
  if(actions[e.key]){e.preventDefault();actions[e.key]();}
 });
 epgTimer=setInterval(refreshEpgDisplay,30000);
-window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);stopPlayer();});
+window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);clearTimeout(menuPreviewTimer);++menuPreviewSerial;stopPlayer();});
 </script></main></body></html>
