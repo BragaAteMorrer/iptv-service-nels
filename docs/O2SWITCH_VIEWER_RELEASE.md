@@ -55,6 +55,7 @@ php -l src/Controller/PlaybackController.php
 php -l deploy/o2switch/public_html/index.php
 php tests/direct_hls_policy_smoke.php
 php tests/o2switch_viewer_route_gate_smoke.php
+php tests/browser_session_security_smoke.php
 php bin/console cache:clear --env=prod
 php bin/console iptv:db:check
 ```
@@ -101,7 +102,7 @@ first; do not run the deployment commands blindly.
 
 The viewer installer backs up web files it replaces into private
 `~/nsatellite/var/deploy-backups/browser-...` directories, copies only
-known HTML pages and the theme assets, and replaces the restrictively
+known HTML pages, the themes and the browser-auth JS asset, and replaces the restrictively
 configured `.htaccess` and PHP front controller. It **preserves
 `.well-known` and pre-existing unlisted files**, including any existing
 customizations outside its explicit file list. It also refreshes the
@@ -161,3 +162,19 @@ configuration first. To restore the staging homepage, restore the backed-up
 preserved `index.html` becomes the directory index again. Leave the database
 and provider credentials untouched. This GitHub change does not itself deploy
 to o2switch.
+
+
+## Persistently signed-in browser (current release)
+
+The web interface now shares a 7-day browser session across `/home.html`,
+`/tv.html`, `/catalog.html`, `/series.html`, `/lineup.html`,
+`/devices.html` and the preserved staging login. The login stores a
+Secure, HttpOnly, SameSite=Lax host-only cookie; no bearer token is stored in
+JavaScript/localStorage. Logout revokes the server session.
+
+The viewer installer now deploys `/assets/nsatellite-auth.js`. The new
+browser-identity routes require the identity API flag, and mutating cookie
+requests require the same-origin CSRF header. After deployment test login,
+page reload, cross-page navigation, a browser restart, and logout. See
+[BROWSER_SESSION.md](BROWSER_SESSION.md) for the checklist. A GitHub merge
+alone still does not update o2switch.
