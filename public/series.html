@@ -52,8 +52,10 @@ $('logout').onclick=async()=>{
  }catch(e){status('Déconnexion impossible : '+e.message);}
 };
 async function restoreSession(){
- if(await NSatelliteAuth.session()){showSession(true);await load();}
- else showSession(false);
+ try{
+  if(await NSatelliteAuth.session()){showSession(true);await load();}
+  else showSession(false);
+ }catch(error){status('Vérification de connexion : '+error.message);}
 }
 void restoreSession();
 async function load(){const serial=++requestId;try{status('Chargement des séries…');const params=new URLSearchParams({page,limit,q:$('search').value});const data=await api('/api/v1/vod/indexed-series?'+params);if(serial!==requestId)return;total=data.total;$('tiles').replaceChildren();for(const item of data.items){const button=document.createElement('button');button.className='tile';const img=poster(item.cover);if(img)button.append(img);const title=document.createElement('strong');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=item.genre||'Série';button.append(title,meta);button.onclick=()=>show(item.id);$('tiles').append(button);}

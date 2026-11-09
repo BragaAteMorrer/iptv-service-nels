@@ -1,0 +1,56 @@
+name: NSatellite quality checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: Browser syntax and session regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check static PC/TV pages
+        run: node tests/check_static_pages.mjs
+      - name: Test browser session client
+        run: node --test tests/browser_auth_client.test.mjs
+      - name: Syntax-check deployment scripts
+        run: |
+          bash -n deploy/o2switch/install-viewer.sh
+          bash -n deploy/o2switch/install-public.sh
+          bash -n deploy/o2switch/check-browser.sh
+
+  php:
+    name: PHP and isolated security smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP 8.4 with required extensions
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, pdo_mysql, sodium, mbstring, xmlreader, simplexml
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: PHP syntax validation
+        run: find src tests deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run deterministic smoke tests against disposable DB
+        run: |
+          php tests/direct_hls_policy_smoke.php
+          php tests/o2switch_viewer_route_gate_smoke.php
+          php tests/browser_session_security_smoke.php
+          php tests/source_access_smoke.php
+          php tests/session_lifecycle_smoke.php
+          php tests/identity_workflow_smoke.php

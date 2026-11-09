@@ -473,10 +473,12 @@ $('browserLogout').onclick=async()=>{
  }catch(error){$('info').textContent='Déconnexion impossible : '+error.message;}
 };
 async function restoreBrowserSession(){
- if(await NSatelliteAuth.session()){
-  showBrowserSession(true);
-  await load();
- }else showBrowserSession(false);
+ try{
+  if(await NSatelliteAuth.session()){
+   showBrowserSession(true);
+   await load();
+  }else showBrowserSession(false);
+ }catch(error){$('info').textContent='Vérification de connexion : '+error.message;}
 }
 void restoreBrowserSession();
 $('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;

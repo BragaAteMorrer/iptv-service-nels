@@ -81,5 +81,10 @@ $('pairForm').addEventListener('submit',async event=>{
  }catch(error){note('Association : '+error.message);}
  finally{$('approve').disabled=false;}
 });
-(async()=>{if(await NSatelliteAuth.session()){show(true);await refresh();}else{show(false);note('Connecte-toi pour gérer tes appareils.');}})();
+(async()=>{
+ try{
+  if(await NSatelliteAuth.session()){show(true);await refresh();}
+  else{show(false);note('Connecte-toi pour gérer tes appareils.');}
+ }catch(error){note('Vérification de connexion : '+error.message);}
+})();
 </script></body></html>

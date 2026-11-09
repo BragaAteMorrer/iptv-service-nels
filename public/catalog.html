@@ -61,8 +61,10 @@ $('logout').onclick=async()=>{
  catch(e){$('notice').textContent='Déconnexion impossible : '+e.message;}
 };
 async function restoreSession(){
- if(await NSatelliteAuth.session()){showSession(true);await reloadKind();}
- else{$('notice').textContent='Connecte-toi pour explorer le catalogue.';showSession(false);}
+ try{
+  if(await NSatelliteAuth.session()){showSession(true);await reloadKind();}
+  else{$('notice').textContent='Connecte-toi pour explorer le catalogue.';showSession(false);}
+ }catch(error){$('notice').textContent='Vérification de connexion : '+error.message;}
 }
 void restoreSession();
 $('search').onclick=()=>{page=1;refresh()};$('favs').onchange=()=>{page=1;refresh()};$('prev').onclick=()=>{if(page>1){page--;refresh();}};$('next').onclick=()=>{page++;refresh();};$('token').addEventListener('change',reloadKind);

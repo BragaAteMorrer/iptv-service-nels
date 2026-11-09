@@ -40,8 +40,10 @@ $('logout').onclick=async()=>{
  catch(error){$('message').textContent='Déconnexion impossible : '+error.message;}
 };
 async function restoreSession(){
- if(await NSatelliteAuth.session()){showSession(true);await load();}
- else showSession(false);
+ try{
+  if(await NSatelliteAuth.session()){showSession(true);await load();}
+  else showSession(false);
+ }catch(error){$('message').textContent='Vérification de connexion : '+error.message;}
 }
 void restoreSession();
 $('load').onclick=()=>{page=1;load()};$('hidden').onchange=()=>{page=1;load()};$('prev').onclick=()=>{if(page>1){page--;load()}};$('next').onclick=()=>{page++;load()};

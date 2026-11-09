@@ -99,8 +99,10 @@ $('logout').onclick=async()=>{
  catch(error){$('accountStatus').textContent='Déconnexion impossible : '+error.message;}
 };
 async function restoreSession(){
- if(await NSatelliteAuth.session())loggedIn();
- else reset();
+ try{
+  if(await NSatelliteAuth.session())loggedIn();
+  else reset();
+ }catch(error){$('accountStatus').textContent=error.message;}
 }
 void restoreSession();
 window.addEventListener('pageshow',event=>{if(event.persisted)void restoreSession();});

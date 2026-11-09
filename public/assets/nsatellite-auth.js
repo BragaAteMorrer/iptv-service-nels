@@ -38,10 +38,16 @@
    return true;
   },
   async session(){
-   try{
-    const data=await json(BASE+'session');
-    return data.authenticated===true;
-   }catch{return false;}
+   // Only a genuine 401 means the cookie session has expired or was revoked.
+   // Timeouts, reverse-proxy errors and 5xx responses must not masquerade as logout.
+   let response;
+   try{response=await request(BASE+'session');}
+   catch{throw Error('Serveur de connexion inaccessible. Réessaie dans quelques instants.');}
+   if(response.status===401)return false;
+   const data=await response.json().catch(()=>null);
+   if(!response.ok)throw Error(data?.error||'Vérification indisponible (HTTP '+response.status+')');
+   if(!data||typeof data.authenticated!=='boolean')throw Error('Réponse de session invalide');
+   return data.authenticated;
   },
   async logout(){
    await json(BASE+'logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
