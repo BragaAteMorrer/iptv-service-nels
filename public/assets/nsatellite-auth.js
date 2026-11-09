@@ -4,6 +4,11 @@
 (function(){
  'use strict';
  const BASE='/api/identity/browser/';
+ // Notify other tabs of logout without sending any credential or personal data.
+ const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('nsatellite-browser-session'):null;
+ if(channel)channel.onmessage=event=>{
+  if(event.data==='logout')location.reload();
+ };
  async function request(path,options={}){
   const method=(options.method||'GET').toUpperCase();
   const headers=new Headers(options.headers||{});
@@ -40,6 +45,7 @@
   },
   async logout(){
    await json(BASE+'logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+   if(channel)channel.postMessage('logout');
    return true;
   }
  });
