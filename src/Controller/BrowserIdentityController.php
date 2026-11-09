@@ -79,10 +79,13 @@ final class BrowserIdentityController
     #[Route('/api/identity/browser/logout', methods: ['POST'])]
     public function logout(Request $request): JsonResponse
     {
-        if ($this->userId($request) !== null) {
-            // Request listener already converted the browser cookie to a bearer
-            // in server memory, so existing logout revokes the actual DB session.
-            $this->identity->logout($request);
+        // Revoke exactly the cookie session, never an unrelated bearer/device token.
+        $token = (string)$request->cookies->get(BrowserSessionListener::cookieName($request), '');
+        if (preg_match('/^[a-f0-9]{64}$/D', $token)) {
+            $this->db->executeStatement(
+                'UPDATE app_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE token_hash=?',
+                [hash('sha256', $token)]
+            );
         }
         $response = new JsonResponse(['ok' => true], 200, ['Cache-Control' => 'no-store']);
         $response->headers->setCookie($this->cookie($request, '', 1));
