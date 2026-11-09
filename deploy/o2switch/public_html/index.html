@@ -73,7 +73,7 @@
   const pairSubmit=document.getElementById('pair-submit');
   const browserEntry=document.getElementById('browser-entry');
   const browserStatus=document.getElementById('browser-deployment-status');
-  let token=null;
+  let signedIn=false;
   async function checkBrowser(){
     browserEntry.hidden=true;
     browserStatus.textContent='Vérification de l’interface navigateur…';
@@ -91,8 +91,9 @@
   }
   function notice(text,ok=false){message.textContent=text;message.classList.toggle('ok',ok);}
   async function call(url,options={}){
-    const headers={'Accept':'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})};
-    const response=await fetch(url,{...options,headers,cache:'no-store',credentials:'omit',redirect:'error'});
+    const headers={'Accept':'application/json',...(options.body?{'Content-Type':'application/json'}:{})};
+    if(options.method && !['GET','HEAD','OPTIONS'].includes(options.method.toUpperCase()))headers['X-NSatellite-Request']='1';
+    const response=await fetch(url,{...options,headers,cache:'no-store',credentials:'same-origin',redirect:'error'});
     let body={};
     try{body=await response.json();}catch(_){}
     return {status:response.status,body};
@@ -102,12 +103,12 @@
     try{
       const email=document.getElementById('email').value.trim();
       const password=document.getElementById('password').value;
-      const result=await call('/api/identity/login',{method:'POST',body:JSON.stringify({email,password})});
+      const result=await call('/api/identity/browser/login',{method:'POST',body:JSON.stringify({email,password})});
       document.getElementById('password').value='';
       if(result.status===404){notice('La connexion n’est pas encore activée sur ce serveur.');return;}
       if(result.status===429){notice('Trop de tentatives. Réessayez plus tard.');return;}
-      if(result.status!==200 || !/^[a-f0-9]{64}$/.test(result.body.access_token||'')){notice('Connexion impossible. Vérifiez vos identifiants.');return;}
-      token=result.body.access_token;
+      if(result.status!==200 || result.body.authenticated!==true){notice('Connexion impossible. Vérifiez vos identifiants.');return;}
+      signedIn=true;
       identity.style.display='none';session.style.display='block';
       notice('Vous êtes connecté.',true);
       await checkBrowser();
@@ -118,7 +119,7 @@
   async function refreshDevices(){
     const list=await call('/api/devices',{method:'GET'});
     devices.replaceChildren();
-    if(list.status===401){token=null;session.style.display='none';identity.style.display='block';notice('Session expirée. Reconnectez-vous.');return;}
+    if(list.status===401){signedIn=false;session.style.display='none';identity.style.display='block';browserEntry.hidden=true;notice('Session expirée. Reconnectez-vous.');return;}
     if(list.status!==200 || !Array.isArray(list.body.items)){
       const li=document.createElement('li');li.textContent='Liste des appareils indisponible.';devices.append(li);return;
     }
@@ -171,10 +172,21 @@
     finally{button.disabled=false;}
   });
   document.getElementById('logout').addEventListener('click',async()=>{
-    try{if(token)await call('/api/identity/logout',{method:'POST'});}catch(_){}
-    token=null;session.style.display='none';identity.style.display='block';browserEntry.hidden=true;browserStatus.textContent='';devices.replaceChildren();notice('Vous êtes déconnecté.',true);
+    try{if(signedIn)await call('/api/identity/browser/logout',{method:'POST',body:'{}'});}catch(_){}
+    signedIn=false;session.style.display='none';identity.style.display='block';browserEntry.hidden=true;browserStatus.textContent='';devices.replaceChildren();notice('Vous êtes déconnecté.',true);
   });
-  window.addEventListener('pagehide',()=>{token=null;});
+  async function restoreBrowser(){
+    try{
+      const result=await call('/api/identity/browser/session',{method:'GET'});
+      if(result.status===200 && result.body.authenticated===true){
+        signedIn=true;identity.style.display='none';session.style.display='block';
+        notice('Session retrouvée automatiquement.',true);
+        await checkBrowser();await refreshDevices();
+      }
+    }catch(_){/* Remain on login if the connection is unavailable. */}
+  }
+  void restoreBrowser();
+  window.addEventListener('pageshow',event=>{if(event.persisted)void restoreBrowser();});
 })();
 </script>
 </body>
