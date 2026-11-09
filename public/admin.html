@@ -10,7 +10,7 @@ input,select{width:100%;padding:12px;background:#111b2a;border:1px solid #455570
 button{background:#36b5bf;border:0;border-radius:8px;padding:12px 17px;font-weight:700;cursor:pointer;margin-top:20px}
 small{color:#a8b6c8}.item{border-bottom:1px solid #34455f;padding:15px 0}
 .msg{min-height:22px;margin-top:15px} @media(max-width:720px){.layout{grid-template-columns:1fr}}
-</style></head><body>
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body>
 <h1>Nels TV <span style="color:#36b5bf">/ Sources</span></h1><p>Administration des sources IPTV autorisées. Les secrets restent côté serveur.</p>
 <label for="token">Jeton d'administration (conservé uniquement en mémoire sur cette page)</label><input id="token" type="password" autocomplete="off" placeholder="IPTV_ADMIN_TOKEN">
 <section><h2>Importer un fichier M3U / M3U8</h2><form id="upload"><label for="uploadName">Nom du bouquet</label><input id="uploadName" required value="Ma playlist"><label for="playlistFile">Choisir un fichier M3U</label><input id="playlistFile" type="file" accept=".m3u,.m3u8,text/plain" required><button type="submit">Importer mon fichier</button><div id="uploadMessage" class="msg" role="status"></div></form></section><div class="layout"><section><h2>Ajouter une source</h2><form id="create">
