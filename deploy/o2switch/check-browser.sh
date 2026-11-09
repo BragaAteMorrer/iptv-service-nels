@@ -32,11 +32,12 @@ fi
 if command -v curl >/dev/null 2>&1; then
   echo
   echo "=== Réponses HTTP anonymes (sans identifiants) ==="
-  for path in / /home.html /tv.html /assets/nsatellite-theme.js /api/lineup /api/playback/relay; do
+  for path in / /home.html /tv.html /assets/nsatellite-theme.js /assets/nsatellite-auth.js /api/identity/browser/session /api/lineup /api/playback/relay; do
     code="$(curl --connect-timeout 5 --max-time 12 -sS -o /dev/null -w '%{http_code}' "$BASE$path" 2>/dev/null || true)"
     printf "%-37s %s\n" "$path" "${code:-réseau indisponible}"
   done
   echo "Attendu : pages /home.html et /tv.html => 200."
+  echo "Session navigateur anonyme => 401 si l'API identité est activée, sinon 404."
   echo "API lineup anonyme => 401 si activée, 404 si verrouillée."
   echo "Relais PHP /api/playback/relay => 403 ou 404, jamais 200."
   # Inspect only the public HTML fingerprint, without printing user or provider data.
