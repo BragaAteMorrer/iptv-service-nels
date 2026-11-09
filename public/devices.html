@@ -1,18 +1,85 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nels TV — Appareils</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0a1220;color:#edf4ff;font:16px system-ui}main{max-width:850px;margin:2rem auto;padding:1.25rem}h1{font-size:1.7rem}section{background:#132339;border:1px solid #34465f;border-radius:14px;padding:20px;margin:18px 0}input,button{font:inherit;padding:12px;border-radius:9px;border:1px solid #7f97b3}input{display:block;width:100%;margin:9px 0;background:#061021;color:#fff}button{background:#175f8b;color:white;cursor:pointer;margin:4px}button:hover{background:#2387bb}button:focus-visible,input:focus-visible{outline:3px solid #4dceb5}#code{font-size:3rem;font-weight:bold;letter-spacing:.3em;margin:12px 0}#message{color:#bbefda;min-height:1.5em}small{color:#b4c4d5}a{color:#a8dfec}</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body><main><h1>Nels TV · Comptes & appareils</h1><p><a href="/tv.html">← Décodeur</a> · Prototype local d'association TV</p><p id="message" role="status">Crée ton premier compte, puis connecte-toi.</p>
-<section><h2>1. Premier compte (une seule fois)</h2><input id="admin" type="password" placeholder="Jeton administrateur local" autocomplete="off"><input id="email" type="email" placeholder="Adresse e-mail" autocomplete="username"><input id="password" type="password" placeholder="Mot de passe (12 caractères minimum)" autocomplete="new-password"><button id="bootstrap">Créer mon compte</button><button id="login">Se connecter</button><small>Après la création du premier compte, utilise « Se connecter ». Le jeton admin est demandé uniquement pour l'initialisation.</small></section>
-<section><h2>2. Simuler une TV à associer</h2><input id="deviceName" placeholder="Nom de l'appareil (ex. Mi TV Stick salon)" value="Mi TV Stick salon"><button id="pairStart">Générer un code TV</button><div id="code" aria-live="polite">—— ——</div><small>Le code expire après 5 minutes. Il devra ensuite être affiché par l'application Android TV.</small></section>
-<section><h2>3. Autoriser la TV depuis ton compte</h2><input id="approvalCode" inputmode="numeric" maxlength="6" placeholder="Code à six chiffres"><button id="approve">Associer cet appareil</button><button id="check">Vérifier sur la TV</button></section>
-<section><h2>4. Mes appareils</h2><button id="list">Actualiser</button><ul id="devices"></ul></section>
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NSatellite — Mes appareils</title>
+<style>
+:root{color-scheme:dark;--bg:#080f1b;--panel:#16263b;--line:#3a516f;--muted:#c2d3e3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f2f8ff;font:16px system-ui,-apple-system,sans-serif}
+header{padding:20px 5%;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;background:#101f33;border-bottom:1px solid var(--line)}
+h1{font-size:24px;margin:0}a{color:#87d9df}nav{display:flex;gap:12px;flex-wrap:wrap}
+main{max-width:970px;margin:auto;padding:20px}section{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:20px;margin:18px 0}
+h2{margin-top:0}label{display:block;margin:8px 0}input,button{font:inherit;padding:11px;border-radius:9px;border:1px solid #637a94}
+input{background:#091627;color:white;min-width:0}button{background:#28677b;color:white;cursor:pointer}
+button:hover{background:#32829b}button:disabled{opacity:.5;cursor:not-allowed}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #6ddbd6;outline-offset:2px}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.row input{flex:1;min-width:180px}
+.muted{color:var(--muted)}#devices{list-style:none;padding:0;display:grid;gap:10px}
+#devices li{padding:14px;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+#devices li span{overflow-wrap:anywhere}#message{color:#9fede4;min-height:1.5em}
+[hidden]{display:none!important}@media(max-width:520px){main{padding:12px}section{padding:13px}#devices li{align-items:flex-start;flex-direction:column}}
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css">
+<script src="/assets/nsatellite-auth.js"></script><script src="/assets/nsatellite-theme.js" defer></script></head>
+<body><header><h1>◈ NSatellite · Mes appareils</h1><nav><a href="/home.html">Accueil</a><a href="/tv.html">TV</a><a href="/catalog.html">Catalogue</a></nav></header>
+<main><p id="message" role="status">Vérification de la session…</p>
+<section id="signin" hidden><h2>Connexion au compte</h2><div class="row">
+<input id="email" type="email" autocomplete="username" placeholder="E-mail" aria-label="Adresse e-mail">
+<input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe">
+<button id="login" type="button">Connexion</button></div></section>
+<section id="manage" hidden>
+<div class="row" style="justify-content:space-between"><h2>Appareils associés</h2><button id="logout" type="button">Déconnexion</button></div>
+<p class="muted">Retire les appareils que tu n'utilises plus. Cela invalide leur accès au catalogue.</p>
+<button id="refresh" type="button">Actualiser la liste</button><ul id="devices"></ul>
+</section>
+<section id="pair" hidden><h2>Associer une télévision</h2>
+<p class="muted">Ouvre l'écran d'association sur la TV, puis entre ici son code à 6 chiffres.</p>
+<form id="pairForm" class="row"><label for="code">Code TV</label><input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="123456" required>
+<button id="approve" type="submit">Associer</button></form></section></main>
 <script>
-const $=id=>document.getElementById(id);let sessionToken='',pairingId='';
-function show(msg){$('message').textContent=msg;}
-async function api(path,body,mode='none'){const headers={'Content-Type':'application/json'};if(mode==='admin')headers['X-Admin-Token']=$('admin').value;if(mode==='user')headers.Authorization='Bearer '+sessionToken;const r=await fetch('/api/'+path,{method:'POST',headers,body:JSON.stringify(body)});const result=await r.json();if(!r.ok)throw Error(result.error||'HTTP '+r.status);return result;}
-async function action(fn){try{await fn();}catch(e){show(e.message);}}
-$('bootstrap').onclick=()=>action(async()=>{await api('identity/bootstrap',{email:$('email').value,password:$('password').value},'admin');show('Compte créé. Clique sur Se connecter.');});
-$('login').onclick=()=>action(async()=>{const r=await api('identity/login',{email:$('email').value,password:$('password').value});sessionToken=r.access_token;$('password').value='';$('admin').value='';show('Connecté. Tu peux maintenant associer ta TV.');});
-$('pairStart').onclick=()=>action(async()=>{const r=await api('devices/pair/start',{name:$('deviceName').value});pairingId=r.pairing_id;$('code').textContent=r.code;$('approvalCode').value=r.code;show('Code TV généré. Valide-le depuis ton compte.');});
-$('approve').onclick=()=>action(async()=>{if(!sessionToken)throw Error('Connecte-toi d’abord.');await api('devices/pair/approve',{code:$('approvalCode').value},'user');show('Association approuvée. Vérifie le statut côté TV.');});
-$('check').onclick=()=>action(async()=>{if(!pairingId)throw Error('Génère un code TV d’abord.');const r=await api('devices/pair/status',{pairing_id:pairingId});if(r.status==='paired'){pairingId='';$('code').textContent='✓';show('TV associée ! Le jeton appareil a été créé (non affiché).');}else show('TV : '+r.status);});
-$('list').onclick=()=>action(async()=>{if(!sessionToken)throw Error('Connecte-toi d’abord.');const r=await fetch('/api/devices',{headers:{Authorization:'Bearer '+sessionToken}});const d=await r.json();if(!r.ok)throw Error(d.error||'Accès refusé');$('devices').replaceChildren();for(const item of d.items){const li=document.createElement('li');li.textContent=item.device_name+' · associé '+new Date(item.paired_at).toLocaleString('fr-FR');const button=document.createElement('button');button.textContent='Révoquer';button.onclick=()=>action(async()=>{const resp=await fetch('/api/devices/'+item.id,{method:'DELETE',headers:{Authorization:'Bearer '+sessionToken}});if(!resp.ok)throw Error('Révocation impossible');li.remove();show('Appareil révoqué.');});li.append(button);$('devices').append(li);}});
-</script></main></body></html>
+'use strict';
+const $=id=>document.getElementById(id);
+function note(message){$('message').textContent=message;}
+function show(active){$('signin').hidden=active;$('manage').hidden=!active;$('pair').hidden=!active;}
+async function refresh(){
+ note('Chargement des appareils…');
+ try{
+  const data=await NSatelliteAuth.json('/api/devices');
+  const fragment=document.createDocumentFragment();
+  for(const item of data.items||[]){
+   const row=document.createElement('li'),name=document.createElement('span'),button=document.createElement('button');
+   name.textContent=String(item.device_name||'Appareil')+' · '+String(item.device_type||'TV');
+   button.type='button';button.textContent='Révoquer';button.setAttribute('aria-label','Révoquer '+String(item.device_name||'cet appareil'));
+   button.onclick=async()=>{
+    if(!confirm('Retirer cet appareil de ton compte ?'))return;
+    button.disabled=true;
+    try{await NSatelliteAuth.json('/api/devices/'+encodeURIComponent(item.id),{method:'DELETE'});await refresh();}
+    catch(error){note('Révocation : '+error.message);button.disabled=false;}
+   };
+   row.append(name,button);fragment.append(row);
+  }
+  $('devices').replaceChildren(fragment);
+  if(!$('devices').children.length){const li=document.createElement('li');li.textContent='Aucun appareil associé';$('devices').append(li);}
+  note('Compte connecté.');
+ }catch(error){note('Appareils : '+error.message);}
+}
+$('login').onclick=async()=>{
+ try{
+  await NSatelliteAuth.login($('email').value,$('password').value);
+  $('password').value='';show(true);await refresh();
+ }catch(error){note('Connexion : '+error.message);}
+};
+$('logout').onclick=async()=>{
+ try{await NSatelliteAuth.logout();$('devices').replaceChildren();show(false);note('Déconnecté.');}
+ catch(error){note('Déconnexion : '+error.message);}
+};
+$('refresh').onclick=refresh;
+$('pairForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ const code=$('code').value.trim();if(!/^[0-9]{6}$/.test(code)){note('Code invalide');return;}
+ $('approve').disabled=true;
+ try{
+  await NSatelliteAuth.json('/api/devices/pair/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+  $('code').value='';note('TV associée. Finalise l’association sur ton téléviseur.');await refresh();
+ }catch(error){note('Association : '+error.message);}
+ finally{$('approve').disabled=false;}
+});
+(async()=>{if(await NSatelliteAuth.session()){show(true);await refresh();}else{show(false);note('Connecte-toi pour gérer tes appareils.');}})();
+</script></body></html>

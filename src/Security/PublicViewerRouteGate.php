@@ -22,6 +22,9 @@ final class PublicViewerRouteGate
 
         $identityRoutes = [
             'POST /api/identity/login' => true,
+            'POST /api/identity/browser/login' => true,
+            'POST /api/identity/browser/logout' => true,
+            'GET /api/identity/browser/session' => true,
             'POST /api/identity/logout' => true,
             'POST /api/devices/pair/start' => true,
             'POST /api/devices/pair/approve' => true,

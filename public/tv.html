@@ -36,8 +36,8 @@ html[data-theme="mediasat"] #decoderPanel #menuList button{border-radius:0}
 html[data-theme="tps"] #decoderPanel{border-left:0;border-bottom:7px solid var(--ns-accent);border-radius:16px 0 0 16px}
 html[data-theme="tps"] #decoderPanel #menuList button{border-radius:3px 13px 3px 13px}
 @media(max-width:700px){#decoderPanel{width:100%;padding:10px;gap:7px}#decoderPanel h2{font-size:18px}#decoderPanel #menuList button{min-height:38px;padding:6px 10px}#decoderPanel .menuFields{grid-template-columns:1fr 1fr}#screenMenuButton{right:8px;top:8px;padding:6px 9px}#decoderPanel #menuProgram{padding:6px}}
-</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head>
-<body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/home.html" style="color:#7cd4e3">Accueil</a> · <a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a></span></header>
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script><script src="/assets/nsatellite-auth.js"></script></head>
+<body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/home.html" style="color:#7cd4e3">Accueil</a> · <a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a> · <button id="browserLogout" type="button" hidden>Déconnexion</button></span></header>
 <div class="controls"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Mot de passe <input id="password" type="password" autocomplete="current-password"></label><button id="login">Connexion Nels TV</button></div>
 <details><summary>Accès administrateur local (ancien mode)</summary><label>Jeton local <input id="token" type="password" autocomplete="off"></label></details><button id="load">Ouvrir le bouquet</button>
 <div id="navigation"><label>Rechercher <input id="search" type="search" placeholder="Nom ou catégorie" aria-label="Rechercher une chaîne"></label><label>Numéro <input id="channelNumber" type="number" min="1" max="99999" placeholder="Ex. 12" aria-label="Numéro de chaîne"></label><button id="goNumber">Aller</button><button id="favoritesOnly" type="button" aria-pressed="false">☆ Toutes les chaînes</button><span id="matches" role="status"></span></div>
@@ -62,9 +62,9 @@ html[data-theme="tps"] #decoderPanel #menuList button{border-radius:3px 13px 3px
 <section id="multiGuide" hidden aria-label="Grille des programmes multichaîne" aria-busy="false"><p class="ns-guide-kicker">Guide électronique des programmes</p><header><h2>Grille TV · Toutes les chaînes</h2><div id="multiGuideControls"><button id="gridPrev" type="button">← Précédentes</button><span id="gridPage">Page 1</span><button id="gridNext" type="button">Suivantes →</button><button id="gridRefresh" type="button">Actualiser</button></div></header><p id="gridSummary" role="status">Ouvre ton bouquet pour afficher le guide multichaîne.</p><div id="gridRows" aria-label="Programmes actuels et suivants"></div></section>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,userToken='',favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay';
-function authHeaders(){return userToken?{'Authorization':'Bearer '+userToken}:{'X-Admin-Token':$('token').value};}
-async function get(path){let r=await fetch('/api/'+path,{headers:authHeaders()});let data=await r.json();if(!r.ok)throw Error(data.error||'Erreur');return data;}
+const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay';
+function authHeaders(){return $('token').value?{'X-Admin-Token':$('token').value}:{};}
+async function get(path){return NSatelliteAuth.json('/api/'+path,{headers:authHeaders()});}
 function isFavorite(c){return c.favorite===true||c.favorite===1||c.favorite==='1';}
 function matchingIndices(){const query=$('search').value.trim().toLocaleLowerCase('fr');return channels.map((c,i)=>({c,i})).filter(({c})=>(!favoritesOnly||isFavorite(c))&&(!query||(c.name+' '+(c.group_name||'')+' '+(c.channel_number??'')).toLocaleLowerCase('fr').includes(query))).map(({i})=>i);}
 function updateMatches(){const matches=matchingIndices();$('matches').textContent=matches.length+' / '+channels.length+' chaînes';if(!$('multiGuide').hidden)drawGrid();drawSidebar();return matches;}
@@ -236,7 +236,7 @@ async function playChannel(channel){
  $('retryPlayback').hidden=true;$('playbackHint').textContent='';$('status').textContent='Connexion à '+channel.name+'…';
  setConnection('connecting','Connexion…','Ouverture de la session de lecture');
  try{
-  const response=await fetch('/api/playback/channel/'+encodeURIComponent(channel.id)+'/session',{method:'POST',headers:{...authHeaders(),'Content-Type':'application/json'},body:'{}',cache:'no-store',credentials:'omit'});
+  const response=await NSatelliteAuth.request('/api/playback/channel/'+encodeURIComponent(channel.id)+'/session',{method:'POST',headers:{...authHeaders(),'Content-Type':'application/json'},body:'{}'});
   // Avoid interpreting upstream HTML error pages as JSON.
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Session impossible (HTTP '+response.status+')');
@@ -455,7 +455,30 @@ function toggleMultiGuide(){
 function toggleGuide(){const guide=$('guide');guide.hidden=!guide.hidden;$('guideButton').setAttribute('aria-expanded',String(!guide.hidden));$('guideButton').textContent=guide.hidden?'Afficher le guide':'Masquer le guide';if(!guide.hidden)loadGuide();}
 function toggleFullscreen(){if(document.fullscreenElement){document.exitFullscreen?.().catch(()=>{});}else{$('screen').requestFullscreen?.().catch(()=>{$('info').textContent='Plein écran indisponible';});}}
 function toggleMute(){const video=$('video');video.muted=!video.muted;$('toggleMute').setAttribute('aria-pressed',String(video.muted));$('toggleMute').textContent=video.muted?'Activer le son':'Couper le son';}
-$('login').onclick=async()=>{try{const r=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});const d=await r.json();if(!r.ok)throw Error(d.error||'Connexion impossible');userToken=d.access_token;$('password').value='';$('info').textContent='Compte connecté';await load();}catch(e){$('info').textContent=e.message;}};
+function showBrowserSession(active){
+ $('email').hidden=active;$('password').hidden=active;$('login').hidden=active;$('browserLogout').hidden=!active;
+ if(active)$('password').value='';
+}
+$('login').onclick=async()=>{
+ try{
+  await NSatelliteAuth.login($('email').value,$('password').value);
+  showBrowserSession(true);$('info').textContent='Compte connecté';await load();
+ }catch(error){$('info').textContent='Connexion : '+error.message;}
+};
+$('browserLogout').onclick=async()=>{
+ try{
+  await NSatelliteAuth.logout();showBrowserSession(false);
+  ++requestId;playingId=null;stopPlayer();channels=[];index=0;updateMatches();drawSidebar();
+  $('name').textContent='Connecte-toi pour regarder';$('info').textContent='Déconnecté';
+ }catch(error){$('info').textContent='Déconnexion impossible : '+error.message;}
+};
+async function restoreBrowserSession(){
+ if(await NSatelliteAuth.session()){
+  showBrowserSession(true);
+  await load();
+ }else showBrowserSession(false);
+}
+void restoreBrowserSession();
 $('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
 document.addEventListener('keydown',e=>{
  if(e.altKey||e.ctrlKey||e.metaKey)return;

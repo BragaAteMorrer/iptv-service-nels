@@ -16,7 +16,7 @@ section{margin-top:30px}section h2{font-size:23px;margin:0 0 14px}section>p{colo
 .rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}.tile{border:1px solid var(--line);background:var(--panel);padding:16px;border-radius:13px;min-height:133px;display:flex;flex-direction:column;gap:9px}.tile strong{font-size:17px;overflow-wrap:anywhere}.tile small{color:var(--muted)}.tile .tag{color:#8addd3;font-size:13px}.tile a{margin-top:auto;color:#8addd3;font-weight:650}.muted{color:var(--muted)}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 @media(max-width:850px){.quick{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{grid-template-columns:1fr}}@media(max-width:490px){.quick{grid-template-columns:1fr 1fr}.quick a{padding:13px}main{padding:16px 12px}.rail{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{padding:12px}#account input{width:100%}}
 @media(prefers-reduced-motion:no-preference){a,button{transition:background .15s ease}}
-</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body>
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script><script src="/assets/nsatellite-auth.js"></script></head><body>
 <header><strong>◈ NSatellite</strong><nav aria-label="Navigation principale"><a href="/home.html" aria-current="page">Accueil</a><a href="/tv.html">TV en direct</a><a href="/catalog.html">Catalogue</a><a href="/series.html">Séries</a><a href="/devices.html">Mes appareils</a></nav></header>
 <main>
 <div class="hero"><div><p class="ns-hero-kicker">Votre télévision, votre univers</p><h1 class="ns-hero-title">Bienvenue sur NSatellite</h1><p>Retrouve tes chaînes, ton programme TV et tes contenus au même endroit. Une interface adaptée au navigateur PC, à la souris et aux commandes de télévision.</p><div class="actions"><a class="primary" href="/tv.html" style="padding:13px 18px;border-radius:10px">Regarder la TV</a><a href="/catalog.html" style="padding:13px 18px;border:1px solid #698199;border-radius:10px">Explorer les films</a></div></div><div aria-hidden="true" style="font-size:70px">▣</div></div>
@@ -29,13 +29,9 @@ section{margin-top:30px}section h2{font-size:23px;margin:0 0 14px}section>p{colo
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let bearer='',generation=0;
-async function api(path){
- const response=await fetch(path,{headers:{Authorization:'Bearer '+bearer},cache:'no-store'});
- const data=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(data.error||'HTTP '+response.status);
- return data;
-}
+let authenticated=false,generation=0;
+async function api(path){return NSatelliteAuth.json(path);}
+
 function tile(item,kind){
  const article=document.createElement('article');article.className='tile';article.dataset.itemId=String(item.id);
  const tag=document.createElement('span');tag.className='tag';tag.textContent=kind==='live'?'EN DIRECT':'FILM';
@@ -64,7 +60,7 @@ async function enrichLive(items,serial){
  }));
 }
 function reset(){
- ++generation;bearer='';$('password').value='';$('logout').hidden=true;$('login').hidden=false;
+ ++generation;authenticated=false;$('password').value='';$('logout').hidden=true;$('login').hidden=false;$('email').hidden=false;$('password').hidden=false;
  $('favorites').replaceChildren();$('movies').replaceChildren();$('accountStatus').textContent='Non connecté';
  $('liveStatus').textContent='Connecte-toi pour retrouver tes chaînes favorites.';
  $('movieStatus').textContent='Connecte-toi pour retrouver tes films favoris.';
@@ -84,18 +80,28 @@ async function populate(){
   }catch(error){if(serial===generation)$(status).textContent='Impossible de charger les favoris : '+error.message;}
  }));
 }
+function loggedIn(){
+ authenticated=true;$('password').value='';
+ $('accountStatus').textContent='Compte connecté · session conservée sur ce navigateur';
+ $('login').hidden=true;$('email').hidden=true;$('password').hidden=true;$('logout').hidden=false;
+ void populate();
+}
 $('account').addEventListener('submit',async event=>{
- event.preventDefault();
- $('login').disabled=true;$('accountStatus').textContent='Connexion en cours…';
+ event.preventDefault();$('login').disabled=true;$('accountStatus').textContent='Connexion en cours…';
  try{
-  const response=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||typeof data.access_token!=='string')throw Error(data.error||'Connexion impossible');
-  bearer=data.access_token;$('password').value='';$('accountStatus').textContent='Compte connecté';$('login').hidden=true;$('logout').hidden=false;
-  await populate();
- }catch(error){$('accountStatus').textContent=error.message;reset();$('accountStatus').textContent='Connexion impossible : '+error.message;}
+  await NSatelliteAuth.login($('email').value,$('password').value);
+  loggedIn();
+ }catch(error){reset();$('accountStatus').textContent='Connexion impossible : '+error.message;}
  finally{$('login').disabled=false;}
 });
-$('logout').onclick=reset;
-window.addEventListener('pagehide',()=>{bearer='';++generation;});window.addEventListener('pageshow',event=>{if(event.persisted)reset();});
+$('logout').onclick=async()=>{
+ try{await NSatelliteAuth.logout();reset();}
+ catch(error){$('accountStatus').textContent='Déconnexion impossible : '+error.message;}
+};
+async function restoreSession(){
+ if(await NSatelliteAuth.session())loggedIn();
+ else reset();
+}
+void restoreSession();
+window.addEventListener('pageshow',event=>{if(event.persisted)void restoreSession();});
 </script></body></html>

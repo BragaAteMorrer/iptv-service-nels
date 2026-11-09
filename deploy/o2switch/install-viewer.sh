@@ -23,7 +23,7 @@ if [[ -L "$DEST" ]]; then
 fi
 
 pages=(home.html tv.html catalog.html series.html lineup.html player.html devices.html)
-assets=(nsatellite-themes.css nsatellite-theme.js)
+assets=(nsatellite-themes.css nsatellite-theme.js nsatellite-auth.js)
 for page in "${pages[@]}"; do
   [[ -f "$SOURCE/$page" ]] || { echo "Fichier manquant : public/$page" >&2; exit 1; }
 done
