@@ -10,12 +10,12 @@ button,input,select{background:#213550;color:#fff;border:1px solid #4c6581;borde
 .tile strong,.tile small{display:block;overflow-wrap:anywhere}.tile small{color:#b6c5d8;margin-top:5px}.panel{background:#19283e;border:1px solid #354b68;border-radius:14px;padding:20px}
 #detail{display:none}#detail.open{display:block}#episodes{display:grid;gap:9px;margin-top:14px}.episode{display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;width:100%}.muted{color:#b5c7da}
 #pager{display:flex;gap:14px;align-items:center;margin-top:20px}.hero{display:flex;gap:18px;align-items:flex-start}.hero img{width:130px;max-height:190px;object-fit:contain}.hero div{flex:1}@media(max-width:600px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tile img{height:150px}.hero{display:block}}
-</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body>
+</style><link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script><script src="/assets/nsatellite-auth.js" defer></script></head><body>
 <header><h1>Nels TV · Séries</h1><nav><a href="/home.html">Accueil</a> · <a href="/catalog.html">Catalogue</a> · <a href="/tv.html">TV en direct</a></nav></header>
 <main>
 <div id="auth" class="panel">
 <h2>Connexion Nels TV</h2>
-<div class="controls"><input id="email" type="email" autocomplete="username" placeholder="E-mail"><input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe"><button id="login">Se connecter</button></div>
+<div class="controls"><input id="email" type="email" autocomplete="username" placeholder="E-mail"><input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe"><button id="login">Se connecter</button><button id="logout" type="button" hidden>Déconnexion</button></div>
 </div>
 <p id="status" role="status" class="muted">Connecte-toi pour consulter tes séries.</p>
 <section id="browse" hidden>
@@ -32,11 +32,30 @@ button,input,select{background:#213550;color:#fff;border:1px solid #4c6581;borde
 </main>
 <script>
 'use strict';
-const $=id=>document.getElementById(id);let token='',page=1,limit=30,total=0,requestId=0,allEpisodes=[],currentEpisode=null,lastSaved=0;
+const $=id=>document.getElementById(id);let page=1,limit=30,total=0,requestId=0,allEpisodes=[],currentEpisode=null,lastSaved=0;
 function status(s){$('status').textContent=s;}
-async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{Authorization:'Bearer '+token,...(opt.headers||{})}});const data=await r.json();if(!r.ok)throw Error(data.error||'Erreur HTTP '+r.status);return data;}
+async function api(url,opt={}){return NSatelliteAuth.json(url,opt);}
 function poster(url){if(!/^https:\/\//i.test(url||''))return null;const img=document.createElement('img');img.src=url;img.loading='lazy';img.referrerPolicy='no-referrer';img.alt='';return img;}
-$('login').onclick=async()=>{try{const r=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});const data=await r.json();if(!r.ok)throw Error(data.error||'Connexion impossible');token=data.access_token;$('password').value='';$('auth').hidden=true;$('browse').hidden=false;await load();}catch(e){status(e.message);}};
+function showSession(active){
+ $('auth').hidden=active;$('browse').hidden=!active;$('logout').hidden=!active;
+}
+$('login').onclick=async()=>{
+ try{
+  await NSatelliteAuth.login($('email').value,$('password').value);
+  $('password').value='';showSession(true);await load();
+ }catch(e){status('Connexion : '+e.message);}
+};
+$('logout').onclick=async()=>{
+ try{
+  await NSatelliteAuth.logout();stopPlayer();$('detail').classList.remove('open');
+  $('tiles').replaceChildren();showSession(false);status('Déconnecté');
+ }catch(e){status('Déconnexion impossible : '+e.message);}
+};
+async function restoreSession(){
+ if(await NSatelliteAuth.session()){showSession(true);await load();}
+ else showSession(false);
+}
+void restoreSession();
 async function load(){const serial=++requestId;try{status('Chargement des séries…');const params=new URLSearchParams({page,limit,q:$('search').value});const data=await api('/api/v1/vod/indexed-series?'+params);if(serial!==requestId)return;total=data.total;$('tiles').replaceChildren();for(const item of data.items){const button=document.createElement('button');button.className='tile';const img=poster(item.cover);if(img)button.append(img);const title=document.createElement('strong');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=item.genre||'Série';button.append(title,meta);button.onclick=()=>show(item.id);$('tiles').append(button);}
 $('count').textContent='Page '+page+' / '+Math.max(1,Math.ceil(total/limit));$('prev').disabled=page===1;$('next').disabled=page*limit>=total;status(total+' séries disponibles'+(total===0?' — synchronise d’abord les données Xtream.':''));}catch(e){status('Catalogue : '+e.message);}}
 async function show(id){try{status('Chargement de la fiche…');const data=await api('/api/v1/vod/indexed-series/'+id);$('browse').hidden=true;$('detail').classList.add('open');$('hero').replaceChildren();const img=poster(data.series.cover);if(img)$('hero').append(img);const description=document.createElement('div');const title=document.createElement('h2');title.textContent=data.series.title;const synopsis=document.createElement('p');synopsis.textContent=data.series.synopsis||'Aucun synopsis fourni par le diffuseur.';description.append(title,synopsis);$('hero').append(description);allEpisodes=data.episodes;$('season').replaceChildren();const seasons=[...new Set(allEpisodes.map(e=>Number(e.season_number)))].sort((a,b)=>a-b);for(const season of seasons)$('season').add(new Option('Saison '+season,String(season)));$('season').disabled=!seasons.length;renderEpisodes();status(allEpisodes.length+' épisodes référencés'+(data.truncated?' (fiche partielle)':''));}catch(e){status('Fiche : '+e.message);}}
