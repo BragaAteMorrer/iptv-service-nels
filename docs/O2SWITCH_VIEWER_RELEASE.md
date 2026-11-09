@@ -54,6 +54,7 @@ php -l src/Security/DirectHlsPolicy.php
 php -l src/Controller/PlaybackController.php
 php -l deploy/o2switch/public_html/index.php
 php tests/direct_hls_policy_smoke.php
+php tests/o2switch_viewer_route_gate_smoke.php
 php bin/console cache:clear --env=prod
 php bin/console iptv:db:check
 ```
