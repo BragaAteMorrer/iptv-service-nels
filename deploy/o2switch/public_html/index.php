@@ -4,6 +4,7 @@ declare(strict_types=1);
 // Staged API entrypoint. Identity endpoints remain disabled by default.
 use IptvService\Kernel;
 use IptvService\Bootstrap\Environment;
+use IptvService\Security\PublicViewerRouteGate;
 use Symfony\Component\HttpFoundation\Request;
 
 require dirname(__DIR__).'/vendor/autoload.php';
@@ -31,51 +32,16 @@ $expectedHost = 'nsatellite.bragaatemorrer.fr';
 $validHost = strtolower((string)$request->headers->get('host', '')) === $expectedHost;
 
 $path = $request->getPathInfo();
-$health = $path === '/api/health' && $request->getMethod() === 'GET';
-$identityRoutes = [
-    'POST /api/identity/login' => true,
-    'POST /api/identity/logout' => true,
-    'POST /api/devices/pair/start' => true,
-    'POST /api/devices/pair/approve' => true,
-    'POST /api/devices/pair/status' => true,
-    'GET /api/devices' => true,
-];
+$method = $request->getMethod();
+$health = $path === '/api/health' && $method === 'GET';
 $identityEnabled = (($_SERVER['NELSTV_ENABLE_IDENTITY_API'] ?? getenv('NELSTV_ENABLE_IDENTITY_API') ?: '') === '1');
-$identity = $identityEnabled && isset($identityRoutes[$request->getMethod().' '.$path]);
+$viewerEnabled = (($_SERVER['NELSTV_ENABLE_VIEWER_API'] ?? getenv('NELSTV_ENABLE_VIEWER_API') ?: '') === '1');
+$directEnabled = (($_SERVER['IPTV_ENABLE_DIRECT_HLS'] ?? getenv('IPTV_ENABLE_DIRECT_HLS') ?: '') === '1');
 
-// Separate viewer release gate: identity alone never unlocks the decoder APIs.
-$viewerEnabled = $identityEnabled
-    && (($_SERVER['NELSTV_ENABLE_VIEWER_API'] ?? getenv('NELSTV_ENABLE_VIEWER_API') ?: '') === '1');
-$playbackEnabled = $viewerEnabled
-    && (($_SERVER['IPTV_ENABLE_DIRECT_HLS'] ?? getenv('IPTV_ENABLE_DIRECT_HLS') ?: '') === '1');
-$route = $request->getMethod().' '.$path;
-$viewerRoutes = [
-    'GET /api/lineup' => true,
-    'GET /api/catalog/discover' => true,
-    'GET /api/catalog/groups' => true,
-    'GET /api/v1/vod/indexed-series' => true,
-];
-$viewer = $viewerEnabled && (
-    isset($viewerRoutes[$route])
-    || ($request->getMethod() === 'GET'
-        && preg_match('#^/api/epg/channel/[1-9][0-9]*$#D', $path) === 1)
-    || ($request->getMethod() === 'GET'
-        && preg_match('#^/api/v1/vod/indexed-series/[1-9][0-9]*$#D', $path) === 1)
-    || ($request->getMethod() === 'PATCH'
-        && preg_match('#^/api/v1/me/library/[1-9][0-9]*/preferences$#D', $path) === 1)
-);
-$playback = $playbackEnabled && $request->getMethod() === 'POST'
-    && preg_match('#^/api/playback/channel/[1-9][0-9]*/session$#D', $path) === 1;
-$library = $identityEnabled && $request->getMethod() === 'GET' && $path === '/api/v1/me/library';
-$revokeDevice = $identityEnabled && $request->getMethod() === 'DELETE'
-    && preg_match('#^/api/devices/[1-9][0-9]*$#D', $path) === 1;
-if (!$health && !$identity && !$revokeDevice && !$library && !$viewer && !$playback) {
-    http_response_code(404);
-    header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: no-store');
-    header('X-Content-Type-Options: nosniff');
-    echo '{"error":"Not found"}';
-    exit;
+// Route decisions are independently unit-tested and fail closed.
+// Controllers must ALSO enforce authentication and source entitlements.
+if (!PublicViewerRouteGate::allows($method,$path,$identityEnabled,$viewerEnabled,$directEnabled)) {
+    denyRequest(404, 'Not found');
 }
 if (!$health && (!$secure || !$validHost)) {
     denyRequest(403, 'HTTPS and valid hostname required');
