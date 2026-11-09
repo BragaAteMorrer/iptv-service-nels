@@ -39,6 +39,16 @@ if command -v curl >/dev/null 2>&1; then
   echo "Attendu : pages /home.html et /tv.html => 200."
   echo "API lineup anonyme => 401 si activée, 404 si verrouillée."
   echo "Relais PHP /api/playback/relay => 403 ou 404, jamais 200."
+  # Inspect only the public HTML fingerprint, without printing user or provider data.
+  root_html="$(curl --connect-timeout 5 --max-time 12 -fsS "$BASE/" 2>/dev/null || true)"
+  if [[ "$root_html" == *"NSatellite — Accueil"* ]]; then
+    echo "ACCUEIL ACTIF : le domaine sert la nouvelle interface navigateur."
+  elif [[ "$root_html" == *"Nels TV — Connexion"* ]]; then
+    echo "ANCIEN ACCUEIL : le domaine sert toujours la page de préproduction."
+    echo "Vérifie le DocumentRoot, le fichier .htaccess et le cache."
+  else
+    echo "Accueil du domaine non identifié : vérifie manuellement le HTML rendu."
+  fi
 else
   echo "curl absent : vérifications réseau ignorées."
 fi
