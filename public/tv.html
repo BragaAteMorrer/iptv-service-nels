@@ -50,7 +50,7 @@ html[data-theme="tps"] #decoderPanel #menuList button{border-radius:3px 13px 3px
    <label for="menuSearch">Rechercher<input id="menuSearch" type="search" placeholder="Nom ou numéro" autocomplete="off"></label>
   </div>
   <label class="menuFavorites"><input id="menuFavorites" type="checkbox"> Uniquement mes favoris</label>
-  <small id="menuCount" role="status">Charge le bouquet pour naviguer.</small>
+  <small id="menuCount" role="status">Charge le bouquet pour naviguer.</small><small>↑ ↓ chaînes · ← → catégories · Entrée regarder · Retour fermer</small>
   <ul id="menuList" aria-label="Chaînes disponibles"></ul>
   <div class="menuPage"><button id="menuPrev" type="button">← Précédentes</button><span id="menuPage">Page 1</span><button id="menuNext" type="button">Suivantes →</button></div>
   <div id="menuProgram"><h3>Programme TV</h3><p id="menuNow">Choisis une chaîne.</p><p id="menuNextProgramme"></p></div>
@@ -189,7 +189,7 @@ function setMenuOpen(open){
  if(open&&!channels.length){$('info').textContent='Charge d’abord un bouquet pour ouvrir le menu.';return;}
  menu.hidden=!open;
  for(const id of ['decoderMenuButton','screenMenuButton'])$(id).setAttribute('aria-expanded',String(open));
- if(!open){clearTimeout(menuPreviewTimer);++menuPreviewSerial;menuPreviewId=null;showBanner();return;}
+ if(!open){clearTimeout(menuPreviewTimer);++menuPreviewSerial;menuPreviewId=null;showBanner();$('screenMenuButton').focus({preventScroll:true});return;}
  menuOptions();rebuildMenu();$('decoderPanel').focus();
 }
 function showBanner(){clearTimeout(bannerTimeout);$('banner').classList.remove('hidden');bannerTimeout=setTimeout(()=>$('banner').classList.add('hidden'),7000);}
@@ -450,6 +450,7 @@ function toggleMute(){const video=$('video');video.muted=!video.muted;$('toggleM
 $('login').onclick=async()=>{try{const r=await fetch('/api/identity/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value,password:$('password').value})});const d=await r.json();if(!r.ok)throw Error(d.error||'Connexion impossible');userToken=d.access_token;$('password').value='';$('info').textContent='Compte connecté';await load();}catch(e){$('info').textContent=e.message;}};
 $('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
 document.addEventListener('keydown',e=>{
+ if(e.altKey||e.ctrlKey||e.metaKey)return;
  if(!$('decoderMenu').hidden){
   if(e.key==='Escape'||e.key==='Backspace'&&!(e.target instanceof HTMLInputElement)){e.preventDefault();setMenuOpen(false);return;}
   if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
