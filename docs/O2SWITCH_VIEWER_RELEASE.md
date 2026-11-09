@@ -59,20 +59,76 @@ php bin/console cache:clear --env=prod
 php bin/console iptv:db:check
 ```
 
-The installer requires an **explicit one-time approval**. It copies only
-known viewer pages (`home`, `tv`, `catalog`, `series`, `lineup`, `player`,
-`devices`) and the shared theme assets. It also installs the hardened
-gateway. It does not copy `admin.html`, PHP source, secrets or migrations,
-and it preserves `index.html` and `.well-known`.
+## Why you might still see the old narrow login page
+
+If `https://nsatellite.bragaatemorrer.fr/` shows only **"Nels TV —
+Connexion établie / Mes appareils / Associer une Android TV"**, you are
+looking at the **staging `public_html/index.html`**, not the new browser
+application. Merging a GitHub PR (even into `main`) does not update
+`~/nsatellite` or copy the `public/*.html` files to `public_html`.
+
+The actual PC browser pages are:
+- `/home.html` — NSatellite home and navigation
+- `/tv.html` — live TV decoder with side channel list, grid/EPG, keyboard and mouse
+- `/catalog.html` — browse the catalog
+- `/series.html` — series browsing
+- `/lineup.html` — organization of personal channel preferences
+
+**To publish the PC pages**, use these commands over SSH on o2switch,
+after confirming the working tree is clean:
 
 ```bash
+cd ~/nsatellite
+git status --short
+git branch --show-current
+git fetch origin
+git switch main
+git pull --ff-only origin main
+
+# Diagnostic before installation: old deployments will show missing pages.
+bash deploy/o2switch/check-browser.sh || true
+
+# Explicit opt-in, private backup of replaced web files, no API activation.
 NSATELLITE_INSTALL_VIEWER_UI=1 bash deploy/o2switch/install-viewer.sh
+
+# Verify local files and HTTP responses from the live domain.
+bash deploy/o2switch/check-browser.sh
 ```
 
-When `home.html` is present, `DirectoryIndex home.html index.html`
-makes it the default landing page. Until the viewer flags are enabled,
-API requests fail closed even if static pages are installed. Consider a
-staging domain and manual acceptance test before enabling the flags publicly.
+Do not run `git reset --hard` or overwrite local changes to force a
+branch switch. If `git status --short` shows changes, resolve them
+first; do not run the deployment commands blindly.
+
+The viewer installer backs up web files it replaces into private
+`~/nsatellite/var/deploy-backups/browser-...` directories, copies only
+known HTML pages and the theme assets, and replaces the restrictively
+configured `.htaccess` and PHP front controller. It **preserves
+`.well-known` and pre-existing unlisted files**, including any existing
+customizations outside its explicit file list. It also refreshes the
+fallback `/index.html` page with a link to the PC interface, but that
+link only appears after the target `/home.html` is actually reachable.
+
+With `DirectoryIndex home.html index.html`, the site's root `/`
+will display the new NSatellite home after installation. If the root
+still shows the staging login page, open `/home.html` explicitly, then
+check the vhost **DocumentRoot**, CDN/browser cache, and the diagnostics
+above. The installer cannot guarantee that the domain points at
+`~/nsatellite/public_html`.
+
+### API activation is a separate operation
+
+Static pages can be installed safely **without enabling playback**.
+To use authenticated listings and the catalog, the operator must
+verify the private environment has `NELSTV_ENABLE_IDENTITY_API=1`
+and then explicitly enable `NELSTV_ENABLE_VIEWER_API=1`.
+Keep `IPTV_ENABLE_DIRECT_HLS=0` until an authorized, credential-free
+HTTPS HLS source with suitable CORS is verified. Never post your
+private environment file, passwords or provider URLs to support chat.
+
+Even with the viewer flag enabled, an account must have explicit
+`user_source_access` grants. This does not implement playback for
+subscription Xtream or raw MPEG-TS streams. Test with a non-sensitive
+source and keep a rollback plan.
 
 ## Acceptance checks
 
