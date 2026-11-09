@@ -1,16 +1,27 @@
 Options -Indexes -MultiViews
-DirectoryIndex index.html
+# Viewer homepage only appears after explicit static frontend installation.
+DirectoryIndex home.html index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^\.well-known/ - [L]
-    # The sole staging API endpoint. Symfony will handle /api/health.
+
+    # Static HTML and assets are served normally; the PHP controller
+    # applies independent environment, identity and method gates.
     RewriteRule ^api/health$ index.php [END]
-    # PHP front controller applies the opt-in environment gate and method allowlist.
     RewriteRule ^api/identity/(?:login|logout)$ index.php [END]
     RewriteRule ^api/devices(?:/pair/(?:start|approve|status)|/[1-9][0-9]*)?$ index.php [END]
     RewriteRule ^api/v1/me/library$ index.php [END]
-    # All other API routes remain closed by default.
+
+    # Explicitly enumerated VIEWER routes, never broad /api forwarding.
+    RewriteRule ^api/lineup$ index.php [END]
+    RewriteRule ^api/epg/channel/[1-9][0-9]*$ index.php [END]
+    RewriteRule ^api/catalog/(?:discover|groups)$ index.php [END]
+    RewriteRule ^api/v1/vod/indexed-series(?:/[1-9][0-9]*)?$ index.php [END]
+    RewriteRule ^api/v1/me/library/[1-9][0-9]*/preferences$ index.php [END]
+    RewriteRule ^api/playback/channel/[1-9][0-9]*/session$ index.php [END]
+
+    # No admin/source imports, legacy relay, VOD range, or generic API access.
     RewriteRule ^api(?:/|$) - [F,END,NC]
     RewriteRule ^(?:index\.php|router\.php)$ - [F,END,NC]
     RewriteRule \.(?:php|sql|env|log|lock|json|yaml|yml)$ - [F,END,NC]
