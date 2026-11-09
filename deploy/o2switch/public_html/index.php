@@ -42,10 +42,34 @@ $identityRoutes = [
 ];
 $identityEnabled = (($_SERVER['NELSTV_ENABLE_IDENTITY_API'] ?? getenv('NELSTV_ENABLE_IDENTITY_API') ?: '') === '1');
 $identity = $identityEnabled && isset($identityRoutes[$request->getMethod().' '.$path]);
+
+// Separate viewer release gate: identity alone never unlocks the decoder APIs.
+$viewerEnabled = $identityEnabled
+    && (($_SERVER['NELSTV_ENABLE_VIEWER_API'] ?? getenv('NELSTV_ENABLE_VIEWER_API') ?: '') === '1');
+$playbackEnabled = $viewerEnabled
+    && (($_SERVER['IPTV_ENABLE_DIRECT_HLS'] ?? getenv('IPTV_ENABLE_DIRECT_HLS') ?: '') === '1');
+$route = $request->getMethod().' '.$path;
+$viewerRoutes = [
+    'GET /api/lineup' => true,
+    'GET /api/catalog/discover' => true,
+    'GET /api/catalog/groups' => true,
+    'GET /api/v1/vod/indexed-series' => true,
+];
+$viewer = $viewerEnabled && (
+    isset($viewerRoutes[$route])
+    || ($request->getMethod() === 'GET'
+        && preg_match('#^/api/epg/channel/[1-9][0-9]*$#D', $path) === 1)
+    || ($request->getMethod() === 'GET'
+        && preg_match('#^/api/v1/vod/indexed-series/[1-9][0-9]*$#D', $path) === 1)
+    || ($request->getMethod() === 'PATCH'
+        && preg_match('#^/api/v1/me/library/[1-9][0-9]*/preferences$#D', $path) === 1)
+);
+$playback = $playbackEnabled && $request->getMethod() === 'POST'
+    && preg_match('#^/api/playback/channel/[1-9][0-9]*/session$#D', $path) === 1;
 $library = $identityEnabled && $request->getMethod() === 'GET' && $path === '/api/v1/me/library';
 $revokeDevice = $identityEnabled && $request->getMethod() === 'DELETE'
     && preg_match('#^/api/devices/[1-9][0-9]*$#D', $path) === 1;
-if (!$health && !$identity && !$revokeDevice && !$library) {
+if (!$health && !$identity && !$revokeDevice && !$library && !$viewer && !$playback) {
     http_response_code(404);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
@@ -56,12 +80,12 @@ if (!$health && !$identity && !$revokeDevice && !$library) {
 if (!$health && (!$secure || !$validHost)) {
     denyRequest(403, 'HTTPS and valid hostname required');
 }
-if (!$health && in_array($request->getMethod(), ['POST', 'DELETE'], true)) {
+if (!$health && in_array($request->getMethod(), ['POST', 'PATCH', 'DELETE'], true)) {
     $origin = (string)$request->headers->get('Origin', '');
     if ($origin !== '' && $origin !== 'https://'.$expectedHost) {
         denyRequest(403, 'Origin rejected');
     }
-    if ($request->getMethod() === 'POST') {
+    if (in_array($request->getMethod(), ['POST', 'PATCH'], true)) {
         $type = strtolower(trim(explode(';', (string)$request->headers->get('Content-Type', ''))[0]));
         if ($type !== 'application/json') denyRequest(415, 'JSON required');
         $size = $request->headers->get('Content-Length');
