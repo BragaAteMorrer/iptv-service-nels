@@ -183,7 +183,7 @@
         notice('Session retrouvée automatiquement.',true);
         await checkBrowser();await refreshDevices();
       }
-    }catch(_){/* Remain on login if the connection is unavailable. */}
+    }catch(_){notice('Vérification de la session indisponible : réessaie après le rétablissement du service.');}
   }
   void restoreBrowser();
   window.addEventListener('pageshow',event=>{if(event.persisted)void restoreBrowser();});
