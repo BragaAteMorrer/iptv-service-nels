@@ -45,7 +45,7 @@ fi
 if command -v curl >/dev/null 2>&1; then
   echo
   echo "=== Réponses HTTP anonymes (sans identifiants) ==="
-  for path in / /home.html /tv.html /assets/nsatellite-themes.css /assets/nsatellite-theme.js /assets/nsatellite-auth.js /api/identity/browser/session /api/lineup /api/playback/relay; do
+  for path in / /home.html /tv.html /account.html /assets/nsatellite-themes.css /assets/nsatellite-theme.js /assets/nsatellite-auth.js /api/identity/browser/session /api/lineup /api/playback/relay; do
     code="$(curl --connect-timeout 5 --max-time 12 -sS -o /dev/null -w '%{http_code}' "$BASE$path" 2>/dev/null || true)"
     printf "%-37s %s\n" "$path" "${code:-réseau indisponible}"
     case "$path" in
