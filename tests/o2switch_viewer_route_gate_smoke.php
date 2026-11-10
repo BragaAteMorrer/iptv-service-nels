@@ -9,7 +9,7 @@ $cases = [
     // method, route, identity flag, viewer flag, direct flag, expected
     ['GET','/api/health',false,false,false,true],
     ['GET','/api/capabilities',false,false,false,true],
-    ['POST','/api/capabilities',true,true,true,false]
+    ['POST','/api/capabilities',true,true,true,false],
     ['GET','/api/lineup',false,false,false,false],
     ['POST','/api/identity/login',false,true,true,false],
     ['POST','/api/identity/login',true,false,false,true],
