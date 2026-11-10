@@ -73,3 +73,19 @@ test('logout sends same-origin POST without exposing browser session cookie', as
  assert.equal(calls[0].options.credentials, 'same-origin');
  assert.equal(calls[0].options.headers.has('Authorization'), false);
 });
+
+test('a 404 retains its HTTP status so account UI can diagnose disabled API routes', async () => {
+ const {api,calls}=harness(reply(404,{error:'Not found'}));
+ await assert.rejects(
+  api.json('/api/account/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}),
+  error => error.status===404 && error.message==='Not found'
+ );
+ assert.equal(calls[0].path,'/api/account/sources');
+ assert.equal(calls[0].options.headers.get('X-NSatellite-Request'),'1');
+ assert.equal(calls[0].options.credentials,'same-origin');
+});
+
+test('account API distinguishes unauthorized 401 from missing 404 route', async () => {
+ const {api}=harness(reply(401,{error:'Non connecté'}));
+ await assert.rejects(api.json('/api/account/sources'),error=>error.status===401);
+});
