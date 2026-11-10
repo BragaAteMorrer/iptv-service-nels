@@ -44,6 +44,8 @@ jobs:
         run: composer validate --no-check-publish
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Regression — public assets must be readable by Apache
+        run: bash tests/o2switch_asset_permissions_smoke.sh
       - name: PHP syntax validation
         run: find src tests deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Run deterministic smoke tests against disposable DB
