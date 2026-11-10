@@ -58,3 +58,4 @@ jobs:
           php tests/source_access_smoke.php
           php tests/session_lifecycle_smoke.php
           php tests/identity_workflow_smoke.php
+          php tests/lineup_server_search_smoke.php
