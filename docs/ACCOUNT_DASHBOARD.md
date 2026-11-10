@@ -219,3 +219,56 @@ définis dans cPanel pour Apache/PHP-FPM : les codes HTTP réels font foi.
 HTTP 404, l'ajout est maintenant désactivé et un message indique les
 contrôles à effectuer. Cette protection évite de répéter des soumissions
 inutiles ; elle ne contourne pas les flags de sécurité de l'hébergement.
+
+## Dépannage : « Enregistrement impossible. Vérifie la migration source_owners. »
+
+Ce message historique apparaissait pour **toute** erreur d'enregistrement.
+Il ne prouve pas que la table est absente : l'échec pouvait venir de
+l'encryption (IPTV_SECRET_KEY), d'un schéma SQL différent, d'une contrainte
+d'intégrité, d'un compte sans droits ou de la création du job.
+
+Le backend indique désormais un **code d'étape non sensible** :
+\`source_limit\`, \`encryption\`, \`insert_source\`, \`insert_ownership\`,
+\`insert_grant\`, \`queue_import\` ou \`commit\`.
+Aucune erreur SQL brute ni donnée fournisseur n'est renvoyée à l'utilisateur.
+L'entrée du journal PHP contient uniquement le code d'étape, la classe
+d'exception et un code sans données personnelles.
+
+### Vérification en lecture seule sur o2switch
+
+\`\`\`bash
+cd ~/nsatellite
+git status --short
+git pull --ff-only origin main
+
+php bin/doctor-account-storage.php
+\`\`\`
+
+Cette commande **ne modifie aucune table**, n'essaie pas de contacter le
+fournisseur et ne révèle pas les valeurs des variables privées. Elle vérifie :
+- La connexion à la base active de l'application ;
+- L'existence des tables et colonnes utilisées à la création
+  (\`sources\`, \`source_owners\`, \`user_source_access\`, \`import_jobs\`,
+  \`app_users\` et \`app_sessions\`) ;
+- Le fonctionnement du chiffrement/déchiffrement avec la clé
+  \`IPTV_SECRET_KEY\`, uniquement **en mémoire**.
+
+Si \`source_owners\` est manquante, sauvegarder d'abord la base, puis
+appliquer **uniquement** la migration
+\`migrations/mariadb/003_source_owners.sql\` via phpMyAdmin à la base
+utilisée par l'application. Ne pas relancer \`001_schema.sql\` contre une
+base existante. Si le diagnostic dit \`IPTV_SECRET_KEY\` invalide, régler
+la configuration privée sans réinitialiser une clé déjà utilisée : changer
+une clé existante rendrait illisibles les accès enregistrés précédemment.
+
+Si tous les prérequis sont verts mais qu'une création échoue, relever
+uniquement le **code d'étape** retourné par le formulaire et les logs
+d'application **expurgés des identifiants**. Le test de création avec
+SQLite jetable permet de vérifier l'ensemble
+source → propriétaire → autorisation → job :
+
+\`\`\`bash
+php tests/account_source_creation_smoke.php
+\`\`\`
+
+Ce test ne modifie pas MariaDB et n'appelle aucun fournisseur IPTV.

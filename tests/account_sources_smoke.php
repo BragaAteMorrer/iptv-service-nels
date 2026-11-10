@@ -7,6 +7,7 @@ use IptvService\Controller\AccountSourcesController;
 use IptvService\Security\RequestRateLimiter;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
+use IptvService\Service\AccountSourceCreator;
 use Symfony\Component\HttpFoundation\Request;
 
 if (!extension_loaded('pdo_sqlite')) { fwrite(STDERR,"SKIP: SQLite absent\n");exit(2); }
@@ -28,7 +29,7 @@ $db->executeStatement("INSERT INTO sources VALUES(20,'Shared Xtream','xtream','r
 $db->executeStatement('INSERT INTO source_owners VALUES(10,1),(20,2)');
 $db->executeStatement('INSERT INTO user_source_access VALUES(1,10),(1,20),(2,20)');
 $db->executeStatement("INSERT INTO import_jobs VALUES(1,10,'completed','remote')");
-$controller=new AccountSourcesController($db,new SecretBox(),new TrustedProviderEndpoint(),new RequestRateLimiter());
+$controller=new AccountSourcesController($db,new SecretBox(),new TrustedProviderEndpoint(),new RequestRateLimiter(),new AccountSourceCreator($db,new SecretBox()));
 $req=static function(string $method,string $path,string $token='',?array $body=null):Request {
  $headers=['CONTENT_TYPE'=>'application/json','REMOTE_ADDR'=>'198.18.0.12'];
  if($token!=='')$headers['HTTP_AUTHORIZATION']='Bearer '.$token;
