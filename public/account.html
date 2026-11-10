@@ -23,6 +23,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </style>
 <link rel="stylesheet" href="/assets/nsatellite-themes.css">
 <script src="/assets/nsatellite-auth.js"></script>
+<script>
+if (!window.NSatelliteAuth) {
+ const missing = () => Promise.reject(new Error('Module de connexion indisponible : vérifie le fichier /assets/nsatellite-auth.js (HTTP 200).'));
+ window.NSatelliteAuth=Object.freeze({login:missing,session:missing,logout:missing,request:missing,json:missing});
+}
+</script>
 <script src="/assets/nsatellite-theme.js" defer></script>
 </head><body>
 <header><strong>◈ NSatellite</strong><nav aria-label="Navigation principale">
