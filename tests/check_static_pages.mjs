@@ -29,3 +29,9 @@ new Script(readFileSync('public/assets/nsatellite-auth.js', 'utf8'), {
  filename: 'public/assets/nsatellite-auth.js'
 });
 console.log('PASS browser auth JS syntax');
+
+const series = readFileSync('public/series.html', 'utf8');
+assert.ok(series.includes('Lecture indisponible'), 'Series page must state production playback limitations');
+assert.ok(!series.includes('/api/v1/vod/items/'), 'Do not call the prohibited VOD session endpoint from production UI');
+assert.ok(!series.includes('/api/v1/vod/range'), 'Do not expose the development-only VOD relay');
+console.log('PASS series viewer does not offer unsupported production playback');
