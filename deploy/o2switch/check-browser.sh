@@ -13,7 +13,7 @@ echo "Git commit: $(git -C "$APP_ROOT" rev-parse --short HEAD 2>/dev/null || ech
 echo "Dossier web attendu: $DEST"
 echo
 missing=0
-for path in home.html tv.html catalog.html series.html lineup.html player.html assets/nsatellite-themes.css assets/nsatellite-theme.js assets/nsatellite-auth.js .htaccess index.php; do
+for path in home.html tv.html catalog.html series.html lineup.html player.html account.html assets/nsatellite-themes.css assets/nsatellite-theme.js assets/nsatellite-auth.js .htaccess index.php; do
   if [[ -f "$DEST/$path" ]]; then
     printf "OK      %s\n" "$path"
   else
