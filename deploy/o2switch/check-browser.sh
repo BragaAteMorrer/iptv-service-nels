@@ -22,6 +22,19 @@ for path in home.html tv.html catalog.html series.html lineup.html player.html a
   fi
 done
 
+if [[ -d "$DEST/assets" ]]; then
+  mode="$(stat -c '%a' "$DEST/assets" 2>/dev/null || echo '?')"
+  printf "Dossier assets : droits %s (attendu : 755)\n" "$mode"
+  # Check other-user traverse bits; do not rely only on the owner's access.
+  if [[ "$mode" != "755" ]]; then
+    echo "ATTENTION : Apache peut retourner HTTP 403 sur les fichiers JS/CSS."
+    missing=1
+  fi
+else
+  echo "ABSENT  public_html/assets"
+  missing=1
+fi
+
 if [[ -f "$DEST/.htaccess" ]] && grep -q 'DirectoryIndex home.html index.html' "$DEST/.htaccess"; then
   echo "OK      DirectoryIndex : home.html prioritaire"
 else
@@ -32,9 +45,18 @@ fi
 if command -v curl >/dev/null 2>&1; then
   echo
   echo "=== Réponses HTTP anonymes (sans identifiants) ==="
-  for path in / /home.html /tv.html /assets/nsatellite-theme.js /assets/nsatellite-auth.js /api/identity/browser/session /api/lineup /api/playback/relay; do
+  for path in / /home.html /tv.html /assets/nsatellite-themes.css /assets/nsatellite-theme.js /assets/nsatellite-auth.js /api/identity/browser/session /api/lineup /api/playback/relay; do
     code="$(curl --connect-timeout 5 --max-time 12 -sS -o /dev/null -w '%{http_code}' "$BASE$path" 2>/dev/null || true)"
     printf "%-37s %s\n" "$path" "${code:-réseau indisponible}"
+    case "$path" in
+      /home.html|/tv.html|/assets/nsatellite-themes.css|/assets/nsatellite-theme.js|/assets/nsatellite-auth.js)
+        if [[ "$code" != 200 ]]; then
+          echo "ERREUR : ressource essentielle HTTP $code ($path)."
+          echo "Vérifie les permissions du dossier public_html/assets, puis le DocumentRoot."
+          missing=1
+        fi
+      ;;
+    esac
   done
   echo "Attendu : pages /home.html et /tv.html => 200."
   echo "Session navigateur anonyme => 401 si l'API identité est activée, sinon 404."
@@ -60,5 +82,5 @@ if (( missing != 0 )); then
   echo "Lis docs/O2SWITCH_VIEWER_RELEASE.md avant de lancer install-viewer.sh."
   exit 1
 fi
-echo "Les fichiers attendus existent localement."
-echo "Cela ne garantit pas que le domaine utilise ce DocumentRoot : compare les codes HTTP ci-dessus."
+echo "Les fichiers requis sont présents ET les ressources publiques répondent HTTP 200."
+echo "Le fonctionnement de la connexion et du catalogue nécessite toujours des tests authentifiés."

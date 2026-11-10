@@ -178,3 +178,32 @@ requests require the same-origin CSRF header. After deployment test login,
 page reload, cross-page navigation, a browser restart, and logout. See
 [BROWSER_SESSION.md](BROWSER_SESSION.md) for the checklist. A GitHub merge
 alone still does not update o2switch.
+
+
+## Diagnostic HTTP 403 sur les fichiers JavaScript/CSS
+
+Si `/home.html` renvoie HTTP 200 mais que `/assets/nsatellite-auth.js`
+`/assets/nsatellite-theme.js` ou `/assets/nsatellite-themes.css`
+renvoient HTTP 403, la page peut afficher
+`NSatelliteAuth is not defined` et la connexion devient impossible.
+
+Cause corrigée : le script d'installation utilisait `umask 077` (utile pour
+les sauvegardes privées), ce qui pouvait créer `public_html/assets` avec
+les droits **700**. Apache ne pouvait pas traverser ce dossier.
+
+Le nouvel installateur applique explicitement **755 uniquement sur le
+répertoire public `public_html/assets`** et conserve les sauvegardes
+privées en 700. Un test CI vérifie cette propriété avant fusion.
+
+Pour corriger une installation déjà affectée :
+
+```bash
+cd ~/nsatellite
+chmod 755 public_html/assets
+curl -sSI https://nsatellite.bragaatemorrer.fr/assets/nsatellite-auth.js
+bash deploy/o2switch/check-browser.sh
+```
+
+Le diagnostic échoue désormais si une ressource HTML/JS/CSS essentielle ne
+répond pas HTTP 200, même lorsque le fichier est présent sur le disque.
+Ne rends pas publics `~/nsatellite/var`, la configuration ni les secrets.
