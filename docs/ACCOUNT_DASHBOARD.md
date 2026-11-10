@@ -153,3 +153,69 @@ La création d'autres comptes et le partage d'une source existante entre
 comptes restent des opérations réservées à l'exploitant/SSH. Les imports
 M3U depuis un fichier local, les connexions MAG et le streaming universel
 ne sont pas activés depuis ce panneau.
+
+## Dépannage : POST /api/account/sources => HTTP 404 « Not found »
+
+Un **404 sur la création de source** intervient avant la validation du lien
+Xtream/M3U : `AccountSourcesController::create()` ne renvoie aucun HTTP 404.
+Cette réponse vient généralement d'une passerelle o2switch désactivée,
+d'un `.htaccess` ou `index.php` déployé trop ancien, ou d'une route Symfony
+absente dans le cache.
+
+Sur SSH o2switch, exécute d'abord **sans partager aucun mot de passe** :
+
+```bash
+cd ~/nsatellite
+bash deploy/o2switch/doctor-account.sh
+```
+
+Le diagnostic effectue deux requêtes **anonymes** sans cookie ni accès IPTV :
+`GET /api/account/sources` et `POST /api/account/sources` avec `{}`.
+Elles doivent toutes deux répondre **HTTP 401** si le routage fonctionne :
+aucune source ne peut être créée car elles ne sont pas authentifiées.
+
+- **401 / 401** : la route est accessible ; rechercher alors un problème
+  dans la session navigateur ou dans le corps de la requête (qui doit
+  produire une erreur 400/422, pas 404).
+- **404 / 404** : vérifier les deux flags privés
+  `NELSTV_ENABLE_IDENTITY_API=1` et `NELSTV_ENABLE_VIEWER_API=1`,
+  puis comparer `public_html/.htaccess` et `public_html/index.php`
+  avec les versions dans `deploy/o2switch/public_html/`.
+- **401 / 404** : le GET passe, mais pas le POST : comparer la
+  configuration Apache et vérifier le blocage par un WAF/hébergement.
+- **403** : rechercher une règle Apache, WAF, HTTPS ou d'origine refusée.
+- **500** : la migration `source_owners`, les dépendances PHP et le
+  schéma MariaDB sont à vérifier ; ce n'est plus le même problème.
+
+La configuration peut être corrigée **uniquement dans le fichier privé**
+`~/nsatellite/.env.local` ou l'environnement o2switch, jamais dans
+`.env.example`. Ne jamais envoyer le contenu de ce fichier à quelqu'un.
+Pour l'API utilisateur, les valeurs nécessaires sont :
+
+```dotenv
+NELSTV_ENABLE_IDENTITY_API=1
+NELSTV_ENABLE_VIEWER_API=1
+```
+
+Après sauvegarde et validation de la configuration, republier le frontal
+contrôlé par GitHub (l'installateur réalise une sauvegarde privée) :
+
+```bash
+cd ~/nsatellite
+git status --short
+git pull --ff-only origin main
+php bin/console cache:clear --env=prod
+NSATELLITE_INSTALL_VIEWER_UI=1 bash deploy/o2switch/install-viewer.sh
+bash deploy/o2switch/doctor-account.sh
+```
+
+Si le répertoire Git contient des changements suivis non enregistrés,
+les résoudre avant l'actualisation. La commande `doctor-account.sh`
+n'envoie aucun cookie, mot de passe, jeton admin ni identifiant fournisseur.
+Les valeurs 0/1 vérifiées en CLI peuvent être différentes des paramètres
+définis dans cPanel pour Apache/PHP-FPM : les codes HTTP réels font foi.
+
+**Côté formulaire**, tant que `GET /api/account/sources` retourne
+HTTP 404, l'ajout est maintenant désactivé et un message indique les
+contrôles à effectuer. Cette protection évite de répéter des soumissions
+inutiles ; elle ne contourne pas les flags de sécurité de l'hébergement.

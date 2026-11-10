@@ -29,6 +29,7 @@ jobs:
           bash -n deploy/o2switch/install-viewer.sh
           bash -n deploy/o2switch/install-public.sh
           bash -n deploy/o2switch/check-browser.sh
+          bash -n deploy/o2switch/doctor-account.sh
       - name: Regression test for o2switch asset permissions
         run: bash tests/o2switch_asset_permissions_smoke.sh
 

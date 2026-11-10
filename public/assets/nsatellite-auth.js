@@ -23,7 +23,11 @@
  async function json(path,options={}){
   const response=await request(path,options);
   const payload=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error(payload.error||'Erreur HTTP '+response.status);
+  if(!response.ok){
+   const error=new Error(payload.error||'Erreur HTTP '+response.status);
+   error.status=response.status;
+   throw error;
+  }
   return payload;
  }
  window.NSatelliteAuth=Object.freeze({

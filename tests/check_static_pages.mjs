@@ -56,3 +56,8 @@ assert.ok(accountFormat.includes('allow_insecure_http'),'HTTP consent must reach
 assert.ok(accountFormat.includes('get.php'),'Full M3U get.php format must be explained');
 assert.ok(!accountFormat.includes('id="token"'),'No global admin token must return');
 console.log('PASS account source form supports documented URLs and explicit HTTP consent');
+
+assert.ok(dashboard.includes('accountApiReady'),'Account source form must wait for a working API');
+assert.ok(dashboard.includes('error?.status===404'),'Account 404 must show a deployment-specific error');
+assert.ok(dashboard.includes('ready(false)'),'Account API failures must disable the write form');
+console.log('PASS account API unavailable state provides a safe actionable diagnostic');

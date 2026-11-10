@@ -75,9 +75,16 @@ if (!window.NSatelliteAuth) {
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let editingId=null,sessionActive=false;
+let editingId=null,sessionActive=false,accountApiReady=false;
+function accountApiError(error,action='La gestion des accès'){
+ if(error?.status===404)return action+' est indisponible (HTTP 404). La passerelle du serveur ne reconnaît pas cette API. Vérifie NELSTV_ENABLE_VIEWER_API=1, la mise à jour de public_html/.htaccess et de public_html/index.php, puis le diagnostic doctor-account.sh.';
+ if(error?.status===401)return 'Session expirée : reconnecte-toi.';
+ if(error?.status===403)return 'Accès refusé (HTTP 403) : vérifie ton compte et la protection des requêtes.';
+ return action+' : '+(error?.message||'Erreur inconnue');
+}
+function ready(value){accountApiReady=value;$('save').disabled=!value;}
 function notify(message){$('message').textContent=message;}
-function state(active){sessionActive=active;$('loginBox').hidden=active;$('workspace').hidden=!active;}
+function state(active){sessionActive=active;$('loginBox').hidden=active;$('workspace').hidden=!active;if(!active)ready(false);}
 function refreshTransport(){
  const value=$('endpoint').value.trim();
  const plain=/^http:\/\//i.test(value);
@@ -119,10 +126,11 @@ function edit(item){
 }
 $('cancel').onclick=clearEditor;
 async function refresh(){
- notify('Chargement des accès du compte…');
+ ready(false);notify('Chargement des accès du compte…');
  try{
   const data=await NSatelliteAuth.json('/api/account/sources');
-  const items=Array.isArray(data.items)?data.items:[];
+  if(!data||!Array.isArray(data.items))throw new Error('Réponse de l’API Sources invalide');
+  const items=data.items;
   const fragment=document.createDocumentFragment();
   for(const item of items){
    const row=document.createElement('li'),content=document.createElement('div'),name=document.createElement('strong'),details=document.createElement('small'),buttons=document.createElement('div');
@@ -137,7 +145,7 @@ async function refresh(){
      try{
       await NSatelliteAuth.json('/api/account/sources/'+encodeURIComponent(item.id)+'/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
       notify('Import demandé pour '+item.name);await refresh();
-     }catch(error){notify('Synchronisation : '+error.message);}
+     }catch(error){notify(accountApiError(error,'Synchronisation'));}
      finally{sync.disabled=false;}
     };
     buttons.append(update,sync);
@@ -146,12 +154,12 @@ async function refresh(){
   }
   $('sources').replaceChildren(fragment);
   if(!items.length){const li=document.createElement('li');li.textContent='Aucune source attribuée. Ajoute une source M3U ou Xtream pour commencer.';$('sources').append(li);}
-  notify(items.length+' source(s) accessible(s) sur ton compte.');
- }catch(error){notify('Mes accès : '+error.message);}
+  ready(true);notify(items.length+' source(s) accessible(s) sur ton compte.');
+ }catch(error){notify(accountApiError(error,'L’API Mon espace'));$('sourceMessage').textContent='Ajout désactivé tant que l’API utilisateur est indisponible.';}
 }
 $('sourceForm').addEventListener('submit',async event=>{
  event.preventDefault();
- if(!sessionActive)return;
+ if(!sessionActive||!accountApiReady){$('sourceMessage').textContent='Impossible d’ajouter une source : l’API du compte n’est pas accessible.';return;}
  const data={name:$('name').value.trim(),kind:$('kind').value,endpoint:$('endpoint').value.trim(),allow_insecure_http:$('allowHttp').checked};
  if(data.kind==='xtream'){data.username=$('providerUser').value;data.password=$('providerPass').value;}
  $('save').disabled=true;$('sourceMessage').textContent='Vérification du domaine et enregistrement…';
@@ -159,8 +167,8 @@ $('sourceForm').addEventListener('submit',async event=>{
   const path=editingId===null?'/api/account/sources':'/api/account/sources/'+encodeURIComponent(editingId);
   await NSatelliteAuth.json(path,{method:editingId===null?'POST':'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   clearEditor();$('sourceMessage').textContent='Source enregistrée. L’import est placé en file d’attente.';await refresh();
- }catch(error){$('sourceMessage').textContent='Source non enregistrée : '+error.message;}
- finally{$('save').disabled=false;$('providerPass').value='';}
+ }catch(error){$('sourceMessage').textContent=accountApiError(error,'Ajout ou modification de source');if(error?.status===404)ready(false);}
+ finally{$('save').disabled=!accountApiReady;$('providerPass').value='';}
 });
 $('loginForm').addEventListener('submit',async event=>{
  event.preventDefault();
