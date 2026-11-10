@@ -20,6 +20,15 @@ final class LineupController {
         $limit=max(1,min(100,(int)$request->query->get('limit',50)));
         $fav=$request->query->get('favorites')==='1';
         $hidden=$request->query->get('include_hidden')==='1';
+        $q=trim((string)$request->query->get('q',''));
+        $group=trim((string)$request->query->get('group',''));
+        $number=(string)$request->query->get('channel_number','');
+        $channelId=(string)$request->query->get('channel_id','');
+        if (mb_strlen($q)>100 || mb_strlen($group)>200
+            || ($number!=='' && preg_match('/^[1-9][0-9]{0,4}$/D',$number)!==1)
+            || ($channelId!=='' && preg_match('/^[1-9][0-9]{0,14}$/D',$channelId)!==1)) {
+            return new JsonResponse(['error'=>'Invalid lineup filters'],422);
+        }
         $admin=$this->viewers->isAdmin($request);
         $user=$this->viewers->userId($request);
         if (!$admin && $user===null) return new JsonResponse(['error'=>'Unauthorized'],401);
@@ -35,9 +44,45 @@ final class LineupController {
         if (!$hidden) $where[]='COALESCE(p.hidden,FALSE) = FALSE';
         $join=$admin ? ' LEFT JOIN channel_preferences p ON p.channel_id=c.id ' : ' LEFT JOIN user_channel_preferences p ON p.user_id=? AND p.source_id=c.source_id AND p.external_id=c.external_id ';
         if (!$admin) { array_unshift($params,$user); array_unshift($types,ParameterType::INTEGER); }
+        if ($group!=='') {
+            $where[]='c.group_name=?'; $params[]=$group; $types[]=ParameterType::STRING;
+        }
+        if ($number!=='') {
+            $where[]='p.channel_number=?'; $params[]=(int)$number; $types[]=ParameterType::INTEGER;
+        }
+        if ($channelId!=='') {
+            $where[]='c.id=?'; $params[]=(int)$channelId; $types[]=ParameterType::INTEGER;
+        }
+        if ($q!=='') {
+            $driver=(string)($this->db->getParams()['driver']??'');
+            if (str_contains($driver,'mysql')) {
+                $nameExpr='LOCATE(LOWER(?),LOWER(c.name))>0';
+                $groupExpr="LOCATE(LOWER(?),LOWER(COALESCE(c.group_name,'')))>0";
+            } elseif (str_contains($driver,'sqlite')) {
+                $nameExpr='INSTR(LOWER(c.name),LOWER(?))>0';
+                $groupExpr="INSTR(LOWER(COALESCE(c.group_name,'')),LOWER(?))>0";
+            } else {
+                $nameExpr='POSITION(LOWER(?) IN LOWER(c.name))>0';
+                $groupExpr="POSITION(LOWER(?) IN LOWER(COALESCE(c.group_name,'')))>0";
+            }
+            $expr='('.$nameExpr.' OR '.$groupExpr;
+            $params[]=$q; $params[]=$q;
+            $types[]=ParameterType::STRING; $types[]=ParameterType::STRING;
+            if (ctype_digit($q) && (int)$q>0 && (int)$q<=99999) {
+                $expr.=' OR p.channel_number=?';
+                $params[]=(int)$q; $types[]=ParameterType::INTEGER;
+            }
+            $where[]=$expr.')';
+        }
+        $filter=implode(' AND ',$where);
+        // One page at a time, even for 100,000+ IPTV entries. Count includes
+        // exactly the same account/source and hidden-channel restrictions.
+        $total=(int)$this->db->fetchOne(
+            'SELECT COUNT(*) FROM channels c '.$join.' WHERE '.$filter,$params,$types
+        );
         $sql='SELECT c.id,c.name,c.group_name,c.logo,c.epg_id,c.source_id,p.channel_number,COALESCE(p.favorite,FALSE) AS favorite,COALESCE(p.hidden,FALSE) AS hidden FROM channels c '.$join.' WHERE '.implode(' AND ',$where).' ORDER BY CASE WHEN p.channel_number IS NULL THEN 1 ELSE 0 END,p.channel_number ASC,c.name ASC,c.id ASC LIMIT ? OFFSET ?';
         $items=$this->db->fetchAllAssociative($sql,array_merge($params,[$limit,($page-1)*$limit]),array_merge($types,[ParameterType::INTEGER,ParameterType::INTEGER]));
-        return new JsonResponse(['page'=>$page,'items'=>$items]);
+        return new JsonResponse(['page'=>$page,'limit'=>$limit,'total'=>$total,'items'=>$items]);
     }
     #[Route('/api/lineup/{id<\d+>}/preferences',methods:['PATCH'])]
     public function update(Request $request,int $id): JsonResponse {
