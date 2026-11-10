@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 const pages = [
  'public/home.html', 'public/tv.html', 'public/catalog.html',
- 'public/series.html', 'public/lineup.html', 'public/devices.html',
+ 'public/series.html', 'public/lineup.html', 'public/devices.html', 'public/account.html',
  'deploy/o2switch/public_html/index.html'
 ];
 for (const path of pages) {
