@@ -36,6 +36,27 @@ jobs:
   php:
     name: PHP and isolated security smoke tests
     runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: nsatellite_ci_root_only
+          MARIADB_DATABASE: nsatellite_ci
+          MARIADB_USER: ci
+          MARIADB_PASSWORD: nsatellite_ci_only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      NSATELLITE_CI_DB_NAME: nsatellite_ci
+      NSATELLITE_CI_DB_HOST: 127.0.0.1
+      NSATELLITE_CI_DB_PORT: '3306'
+      NSATELLITE_CI_DB_USER: ci
+      NSATELLITE_CI_DB_PASSWORD: nsatellite_ci_only
     steps:
       - uses: actions/checkout@v4
       - name: PHP 8.4 with required extensions
@@ -53,6 +74,8 @@ jobs:
         run: bash tests/o2switch_asset_permissions_smoke.sh
       - name: PHP syntax validation
         run: find src tests deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: MariaDB 11.4 live import queue claim and concurrency
+        run: php tests/import_job_claim_mariadb_smoke.php
       - name: Run deterministic smoke tests against disposable DB
         run: |
           php tests/direct_hls_policy_smoke.php
