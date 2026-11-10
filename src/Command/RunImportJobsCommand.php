@@ -9,11 +9,16 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name:'iptv:jobs:run',description:'Process the next queued import job')]
 final class RunImportJobsCommand extends Command {
+    // MariaDB 11.4 and PostgreSQL require LIMIT *before* FOR UPDATE.
+    // SKIP LOCKED permits multiple workers to claim distinct queued jobs.
+    // Keep the row lock within a transaction until status='running' is committed.
+    public const CLAIM_SQL = "SELECT * FROM import_jobs WHERE status='queued' ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED";
+
     public function __construct(private readonly Connection $db,private readonly ImportM3uCommand $m3u,private readonly SyncSourceCommand $sync){parent::__construct();}
     protected function execute(InputInterface $input,OutputInterface $output):int {
         $this->db->beginTransaction();
         try {
-            $job=$this->db->fetchAssociative("SELECT * FROM import_jobs WHERE status='queued' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1");
+            $job=$this->db->fetchAssociative(self::CLAIM_SQL);
             if(!$job){$this->db->commit();return Command::SUCCESS;}
             $this->db->executeStatement("UPDATE import_jobs SET status='running',attempts=attempts+1,started_at=NOW() WHERE id=?",[$job['id']]);
             $this->db->commit();

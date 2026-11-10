@@ -272,3 +272,50 @@ php tests/account_source_creation_smoke.php
 \`\`\`
 
 Ce test ne modifie pas MariaDB et n'appelle aucun fournisseur IPTV.
+
+
+## MariaDB : erreur SQL 1064 « near LIMIT 1 » dans le worker
+
+Le worker `php bin/console iptv:jobs:run --env=prod` doit réserver
+atomiquement un job `queued` avant de contacter un fournisseur. MariaDB
+11.4 exige de placer `LIMIT 1` **avant** `FOR UPDATE SKIP LOCKED`.
+L'ancienne requête plaçait `LIMIT 1` à la fin et produisait une erreur
+SQLSTATE 42000 / 1064.
+
+Requête correcte (transaction InnoDB obligatoire) :
+
+```sql
+SELECT * FROM import_jobs WHERE status='queued'
+ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED;
+```
+
+Le worker conserve le verrou pendant qu'il marque le job `running`,
+puis termine la transaction **avant** le téléchargement. Deux workers
+ne doivent donc pas réserver le même job. Une CI MariaDB 11.4 vérifie
+la syntaxe, la réservation concurrente et les états.
+
+Si un import a échoué **sur cette requête**, aucun job n'a normalement
+été réservé : ne supprime pas la source ni les identifiants enregistrés.
+
+Déployer uniquement le code, puis lancer **une** invocation du worker :
+
+```bash
+cd ~/nsatellite
+git status --short
+git pull --ff-only origin main
+php -l src/Command/RunImportJobsCommand.php
+php bin/console iptv:jobs:run --env=prod
+```
+
+Pour consulter l'état des jobs sans divulguer les URL :
+
+```sql
+SELECT id, source_id, status, attempts, finished_at
+FROM import_jobs ORDER BY id DESC LIMIT 10;
+```
+
+Si le job passe à `failed`, cela signifie que le worker a atteint
+l'étape de synchronisation et qu'il faudra diagnostiquer la source, le
+schéma du catalogue ou les accès fournisseur séparément. Une importation
+volumineuse peut prendre du temps ; ne pas lancer plusieurs workers en
+boucle pendant son exécution.
