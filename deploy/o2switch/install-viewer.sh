@@ -90,3 +90,5 @@ echo "À tester : https://nsatellite.bragaatemorrer.fr/home.html"
 echo "Puis : https://nsatellite.bragaatemorrer.fr/tv.html"
 echo "Les API restent verrouillées tant que leurs options privées ne sont pas activées."
 echo "Vérifie aussi que le DocumentRoot du domaine pointe bien vers : $DEST"
+
+echo "Pour vérifier un HTTP 404 sur /api/account/sources : bash deploy/o2switch/doctor-account.sh"
