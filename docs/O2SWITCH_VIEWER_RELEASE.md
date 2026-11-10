@@ -207,3 +207,24 @@ bash deploy/o2switch/check-browser.sh
 Le diagnostic échoue désormais si une ressource HTML/JS/CSS essentielle ne
 répond pas HTTP 200, même lorsque le fichier est présent sur le disque.
 Ne rends pas publics `~/nsatellite/var`, la configuration ni les secrets.
+
+
+## Capabilities and VOD availability (browser production release)
+
+The public, **non-sensitive** `GET /api/capabilities` endpoint describes which
+player transports are enabled. It never exposes provider URLs, tokens, or
+allowlists. On o2switch production, `vod_playback` is **false** even when
+the catalogue contains films or episodes. The browser therefore labels
+those episodes as **not playable yet** instead of offering a broken “Lire”
+button. The VOD controller itself also rejects both session and Range
+requests outside `APP_ENV=dev` plus explicit
+`IPTV_ENABLE_LOCAL_RELAY=1`, regardless of Apache routing.
+
+`tv_direct_hls` only reports whether the restrictive production HLS mode is
+configured; it does not guarantee that a particular authorized channel is
+readable from the browser. CORS, format and source entitlements still apply.
+
+After installation, verify `GET /api/capabilities` returns HTTP 200 with
+`vod_playback:false` on production. If an old gateway does not offer it,
+the Séries page must fail closed and disable VOD playback. Never enable a
+public PHP media relay on shared hosting to “fix” a disabled button.
