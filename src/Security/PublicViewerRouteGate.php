@@ -39,6 +39,8 @@ final class PublicViewerRouteGate
         if (!$viewerEnabled) return false;
 
         $viewerRoutes = [
+            'GET /api/account/sources' => true,
+            'POST /api/account/sources' => true,
             'GET /api/lineup' => true,
             'GET /api/catalog/discover' => true,
             'GET /api/catalog/groups' => true,
