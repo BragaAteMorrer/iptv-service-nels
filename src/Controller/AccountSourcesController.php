@@ -8,6 +8,8 @@ use IptvService\Security\AccountSourceInput;
 use IptvService\Security\RequestRateLimiter;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
+use IptvService\Service\AccountSourceCreator;
+use IptvService\Service\AccountSourceWriteFailure;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -27,6 +29,7 @@ final class AccountSourcesController
         private readonly SecretBox $box,
         private readonly TrustedProviderEndpoint $trusted,
         private readonly RequestRateLimiter $limiter,
+        private readonly AccountSourceCreator $creator,
     ) {}
 
     private function user(Request $request): ?int
@@ -109,29 +112,31 @@ final class AccountSourcesController
             return new JsonResponse(['error'=>'Trop de créations. Réessaie plus tard.'],429);
         $data=$this->input($request);
         if ($data instanceof JsonResponse) return $data;
-        $this->db->beginTransaction();
         try {
-            $count=(int)$this->db->fetchOne('SELECT COUNT(*) FROM source_owners WHERE user_id=?',[$user]);
-            if ($count>=10) {
-                $this->db->rollBack();
-                return new JsonResponse(['error'=>'Limite de 10 sources personnelles atteinte'],409);
-            }
-            $this->db->executeStatement(
-                "INSERT INTO sources(name,kind,endpoint,credentials,status) VALUES(?,?,?,?, 'pending')",
-                [$data['name'],$data['kind'],$this->box->encrypt(['url'=>$data['url']]),$this->box->encrypt($data['credentials'])]
-            );
-            $source=(int)$this->db->lastInsertId();
-            $this->db->insert('source_owners',['source_id'=>$source,'user_id'=>$user]);
-            $this->db->insert('user_source_access',['source_id'=>$source,'user_id'=>$user]);
-            $this->db->executeStatement(
-                "INSERT INTO import_jobs(source_id,method,status) VALUES(?,'remote','queued')",[$source]
-            );
-            $job=(int)$this->db->lastInsertId();
-            $this->db->commit();
-            return new JsonResponse(['id'=>$source,'job_id'=>$job,'status'=>'queued'],201,['Cache-Control'=>'no-store']);
-        } catch (\Throwable) {
-            if ($this->db->isTransactionActive()) $this->db->rollBack();
-            return new JsonResponse(['error'=>'Enregistrement impossible. Vérifie la migration source_owners.'],500);
+            $created=$this->creator->create($user,$data);
+            return new JsonResponse([
+                'id'=>$created['source_id'],'job_id'=>$created['job_id'],
+                'status'=>'queued'
+            ],201,['Cache-Control'=>'no-store']);
+        } catch (\DomainException) {
+            return new JsonResponse(['error'=>'Limite de 10 sources personnelles atteinte'],409);
+        } catch (AccountSourceWriteFailure $e) {
+            $cause=$e->getPrevious();
+            // Never log the original exception message: database drivers can
+            // include SQL arguments and encrypted provider data in exceptions.
+            $type=$cause!==null?get_class($cause):'unknown';
+            $code=$cause!==null?preg_replace('/[^a-zA-Z0-9_]/','',(string)$cause->getCode()):'';
+            error_log('NSatellite account source write failed stage='.$e->stage.' type='.$type.' code='.$code);
+            $advice=match($e->stage) {
+                'source_limit','insert_ownership','insert_grant','insert_source','queue_import'
+                    =>'Vérifie le schéma des tables via doctor-account-storage.php.',
+                'encryption'=>'Vérifie la clé de chiffrement avec doctor-account-storage.php.',
+                default=>'Vérifie la base de données via doctor-account-storage.php.'
+            };
+            return new JsonResponse([
+                'error'=>'Enregistrement impossible (étape : '.$e->stage.'). '.$advice,
+                'diagnostic'=>'ACCOUNT_SOURCE_'.$e->stage
+            ],500,['Cache-Control'=>'no-store']);
         }
     }
 
