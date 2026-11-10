@@ -20,6 +20,14 @@ use Symfony\Component\Routing\Attribute\Route;
 final class VodPlaybackController
 {
     private const WINDOW = 2 * 1024 * 1024;
+
+    // Defence in depth: the Apache allowlist is not the security boundary.
+    // Never permit PHP media relaying from a public/prod Symfony entrypoint.
+    private function localVideoRelayEnabled(): bool
+    {
+        return (($_SERVER['APP_ENV'] ?? $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'prod') === 'dev')
+            && (($_SERVER['IPTV_ENABLE_LOCAL_RELAY'] ?? $_ENV['IPTV_ENABLE_LOCAL_RELAY'] ?? getenv('IPTV_ENABLE_LOCAL_RELAY') ?: '') === '1');
+    }
     public function __construct(
         private readonly Connection $db,
         private readonly SecretBox $box,
@@ -30,6 +38,9 @@ final class VodPlaybackController
     #[Route('/api/v1/vod/items/{id<\d+>}/session', methods:['POST'])]
     public function session(Request $request,int $id): JsonResponse
     {
+        if (!$this->localVideoRelayEnabled()) {
+            return new JsonResponse(['error'=>'Lecture VOD indisponible sur cet hébergement'],403,['Cache-Control'=>'no-store']);
+        }
         if (!$this->viewers->authorized($request)) return new JsonResponse(['error'=>'Unauthorized'],401);
         $item=$this->db->fetchAssociative(
             "SELECT c.source_id,c.kind,c.external_id,c.stream_url,s.kind AS source_kind,s.endpoint,s.credentials
@@ -70,6 +81,9 @@ final class VodPlaybackController
     #[Route('/api/v1/vod/range', methods:['GET'])]
     public function range(Request $request): Response
     {
+        if (!$this->localVideoRelayEnabled()) {
+            return new Response('Lecture indisponible',403,['Cache-Control'=>'no-store']);
+        }
         try {
             $ticket=(string)$request->query->get('ticket','');
             if (!preg_match('/^[A-Za-z0-9_-]{20,8192}$/D',$ticket)) throw new \RuntimeException('Ticket invalid');

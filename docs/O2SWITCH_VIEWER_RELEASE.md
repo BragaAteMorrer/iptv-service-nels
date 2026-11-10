@@ -224,3 +224,18 @@ Smoke test: `php tests/o2switch_viewer_route_gate_smoke.php` covers the
 allowed PUT, disabled flags, wrong method and invalid IDs. The static Node
 test prevents accidental reintroduction of VOD relay calls on the public
 series page.
+
+
+## Production VOD guard
+
+The VOD session and byte-range routes now enforce the environment restriction
+inside `VodPlaybackController` itself. Even if a reverse proxy or vhost
+accidentally forwards these routes directly to Symfony, both return HTTP 403
+unless `APP_ENV=dev` **and** `IPTV_ENABLE_LOCAL_RELAY=1`. The public o2switch
+Apache and PHP gateway must continue to deny the two routes independently.
+
+For the browser, the catalogue remains accessible with a valid account but
+the series player is not available on this hosting tier. Test the server guard
+with `php tests/vod_production_gate_smoke.php`. Do not enable the local relay
+on o2switch as a workaround: protected media playback needs a separate
+provider-approved architecture.
