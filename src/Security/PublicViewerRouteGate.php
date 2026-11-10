@@ -51,6 +51,10 @@ final class PublicViewerRouteGate
             && preg_match('#^/api/v1/vod/indexed-series/[1-9][0-9]*$#D', $path) === 1) return true;
         if ($method === 'PATCH'
             && preg_match('#^/api/v1/me/library/[1-9][0-9]*/preferences$#D', $path) === 1) return true;
+        // Saving VOD progress is account-scoped in PersonalLibraryController.
+        // The VOD byte relay and session endpoints remain blocked in production.
+        if ($method === 'PUT'
+            && preg_match('#^/api/v1/me/library/[1-9][0-9]*/progress$#D', $path) === 1) return true;
 
         return $directHlsEnabled
             && $method === 'POST'
