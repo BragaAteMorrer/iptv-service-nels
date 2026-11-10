@@ -11,6 +11,7 @@ DirectoryIndex home.html index.html
     # Static HTML and assets are served normally; the PHP controller
     # applies independent environment, identity and method gates.
     RewriteRule ^api/health$ index.php [END]
+    RewriteRule ^api/capabilities$ index.php [END]
     RewriteRule ^api/identity/(?:login|logout)$ index.php [END]
     RewriteRule ^api/identity/browser/(?:login|logout|session)$ index.php [END]
     RewriteRule ^api/devices(?:/pair/(?:start|approve|status)|/[1-9][0-9]*)?$ index.php [END]
