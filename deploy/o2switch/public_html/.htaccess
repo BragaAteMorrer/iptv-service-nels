@@ -18,6 +18,7 @@ DirectoryIndex home.html index.html
 
     # Explicitly enumerated VIEWER routes, never broad /api forwarding.
     RewriteRule ^api/lineup$ index.php [END]
+    RewriteRule ^api/account/sources(?:/[1-9][0-9]*(?:/sync)?)?$ index.php [END]
     RewriteRule ^api/epg/channel/[1-9][0-9]*$ index.php [END]
     RewriteRule ^api/catalog/(?:discover|groups)$ index.php [END]
     RewriteRule ^api/v1/vod/indexed-series(?:/[1-9][0-9]*)?$ index.php [END]
