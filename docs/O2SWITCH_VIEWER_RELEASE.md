@@ -207,3 +207,20 @@ bash deploy/o2switch/check-browser.sh
 Le diagnostic échoue désormais si une ressource HTML/JS/CSS essentielle ne
 répond pas HTTP 200, même lorsque le fichier est présent sur le disque.
 Ne rends pas publics `~/nsatellite/var`, la configuration ni les secrets.
+
+## Series and VOD production capabilities
+
+The browser series page now **shows the indexed series and episode metadata
+without misleading Play buttons**. On shared o2switch hosting the VOD session
+and byte relay endpoints are deliberately unavailable. Do not grant the
+development-only MP4 relay to the public gateway to make the buttons work.
+
+`PUT /api/v1/me/library/{id}/progress` is separately permitted as an
+**account-scoped metadata write**. Authentication, per-source authorization,
+CSRF and input validation remain enforced by the existing controller and
+browser-session listener. This route does not make VOD playback work.
+
+Smoke test: `php tests/o2switch_viewer_route_gate_smoke.php` covers the
+allowed PUT, disabled flags, wrong method and invalid IDs. The static Node
+test prevents accidental reintroduction of VOD relay calls on the public
+series page.
