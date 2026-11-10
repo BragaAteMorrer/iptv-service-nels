@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nels TV — Séries</title>
+<title>NSatellite — Séries</title>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{background:#0e1625;color:#f3f6fc;margin:0;font:16px system-ui,-apple-system,sans-serif}header{background:#19283e;padding:20px max(24px,5vw);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 h1{font-size:25px;margin:0}h2{margin:0 0 14px}a{color:#88d7ee}main{max-width:1250px;margin:auto;padding:26px 20px}
@@ -22,10 +22,10 @@ if (!window.NSatelliteAuth) {
  });
 }
 </script></head><body>
-<header><h1>Nels TV · Séries</h1><nav><a href="/home.html">Accueil</a> · <a href="/catalog.html">Catalogue</a> · <a href="/tv.html">TV en direct</a></nav></header>
+<header><h1>NSatellite · Séries</h1><nav><a href="/home.html">Accueil</a> · <a href="/catalog.html">Catalogue</a> · <a href="/tv.html">TV en direct</a></nav></header>
 <main>
 <div id="auth" class="panel">
-<h2>Connexion Nels TV</h2>
+<h2>Connexion NSatellite</h2>
 <div class="controls"><input id="email" type="email" autocomplete="username" placeholder="E-mail"><input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe"><button id="login">Se connecter</button></div>
 </div>
 <button id="logout" type="button" hidden>Déconnexion</button><p id="status" role="status" class="muted">Connecte-toi pour consulter tes séries.</p>
@@ -38,13 +38,27 @@ if (!window.NSatelliteAuth) {
 <button id="back">← Retour aux séries</button>
 <div id="hero" class="hero"></div>
 <label for="season">Saison</label> <select id="season"></select>
-<div id="episodes"></div><div id="playerBox" hidden><h2>Lecture VOD (prototype local)</h2><video id="vodPlayer" controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000"></video><button id="stopVod">Arrêter</button></div>
+<p id="vodAvailability" role="status" class="muted">Vérification de la disponibilité de la lecture vidéo…</p><div id="episodes"></div><div id="playerBox" hidden><h2>Lecture VOD (prototype local)</h2><video id="vodPlayer" controls playsinline preload="metadata" style="display:block;width:100%;max-height:65vh;background:#000"></video><button id="stopVod">Arrêter</button></div>
 </section>
 </main>
 <script>
 'use strict';
-const $=id=>document.getElementById(id);let page=1,limit=30,total=0,requestId=0,allEpisodes=[],currentEpisode=null,lastSaved=0;
+const $=id=>document.getElementById(id);let page=1,limit=30,total=0,requestId=0,allEpisodes=[],currentEpisode=null,lastSaved=0,vodAvailable=false;
 function status(s){$('status').textContent=s;}
+async function checkCapabilities(){
+ try{
+  const response=await NSatelliteAuth.json('/api/capabilities');
+  vodAvailable=response.vod_playback===true;
+ }catch{
+  // Fail closed when deploying a newer page to an older gateway.
+  vodAvailable=false;
+ }
+ $('vodAvailability').textContent=vodAvailable
+  ? 'Lecture locale de test disponible (uniquement sur environnement de développement).'
+  : 'Catalogue consultable. La lecture des épisodes et la reprise VOD ne sont pas encore disponibles sur cet hébergement.';
+ if($('detail').classList.contains('open'))renderEpisodes();
+}
+void checkCapabilities();
 async function api(url,opt={}){return NSatelliteAuth.json(url,opt);}
 function poster(url){if(!/^https:\/\//i.test(url||''))return null;const img=document.createElement('img');img.src=url;img.loading='lazy';img.referrerPolicy='no-referrer';img.alt='';return img;}
 function showSession(active){
@@ -72,9 +86,16 @@ void restoreSession();
 async function load(){const serial=++requestId;try{status('Chargement des séries…');const params=new URLSearchParams({page,limit,q:$('search').value});const data=await api('/api/v1/vod/indexed-series?'+params);if(serial!==requestId)return;total=data.total;$('tiles').replaceChildren();for(const item of data.items){const button=document.createElement('button');button.className='tile';const img=poster(item.cover);if(img)button.append(img);const title=document.createElement('strong');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=item.genre||'Série';button.append(title,meta);button.onclick=()=>show(item.id);$('tiles').append(button);}
 $('count').textContent='Page '+page+' / '+Math.max(1,Math.ceil(total/limit));$('prev').disabled=page===1;$('next').disabled=page*limit>=total;status(total+' séries disponibles'+(total===0?' — synchronise d’abord les données Xtream.':''));}catch(e){status('Catalogue : '+e.message);}}
 async function show(id){try{status('Chargement de la fiche…');const data=await api('/api/v1/vod/indexed-series/'+id);$('browse').hidden=true;$('detail').classList.add('open');$('hero').replaceChildren();const img=poster(data.series.cover);if(img)$('hero').append(img);const description=document.createElement('div');const title=document.createElement('h2');title.textContent=data.series.title;const synopsis=document.createElement('p');synopsis.textContent=data.series.synopsis||'Aucun synopsis fourni par le diffuseur.';description.append(title,synopsis);$('hero').append(description);allEpisodes=data.episodes;$('season').replaceChildren();const seasons=[...new Set(allEpisodes.map(e=>Number(e.season_number)))].sort((a,b)=>a-b);for(const season of seasons)$('season').add(new Option('Saison '+season,String(season)));$('season').disabled=!seasons.length;renderEpisodes();status(allEpisodes.length+' épisodes référencés'+(data.truncated?' (fiche partielle)':''));}catch(e){status('Fiche : '+e.message);}}
-function renderEpisodes(){$('episodes').replaceChildren();const season=Number($('season').value);for(const item of allEpisodes.filter(x=>Number(x.season_number)===season)){const el=document.createElement('div');el.className='episode panel';const text=document.createElement('div');const strong=document.createElement('strong');strong.textContent='Épisode '+item.episode_number+' · '+item.title;const small=document.createElement('div');small.className='muted';const pos=Number(item.position_seconds||0),dur=Number(item.duration_seconds||0);small.textContent=pos>0?'Reprise : '+Math.floor(pos/60)+' min'+(dur?' / '+Math.floor(dur/60)+' min':''):'Non commencé';text.append(strong,small);el.append(text);const play=document.createElement('button');play.textContent=Number(item.position_seconds||0)>0?'▶ Reprendre':'▶ Lire';play.onclick=()=>playEpisode(item);el.append(play);if(Number(item.position_seconds||0)>0){const resume=document.createElement('button');resume.textContent='Reprise enregistrée';resume.title='La lecture VOD sera disponible après intégration MP4/HLS';resume.disabled=true;el.append(resume);}$('episodes').append(el);}if(!$('episodes').children.length)$('episodes').textContent='Aucun épisode importé pour cette série.';}
+function renderEpisodes(){$('episodes').replaceChildren();const season=Number($('season').value);for(const item of allEpisodes.filter(x=>Number(x.season_number)===season)){const el=document.createElement('div');el.className='episode panel';const text=document.createElement('div');const strong=document.createElement('strong');strong.textContent='Épisode '+item.episode_number+' · '+item.title;const small=document.createElement('div');small.className='muted';const pos=Number(item.position_seconds||0),dur=Number(item.duration_seconds||0);small.textContent=pos>0?'Reprise : '+Math.floor(pos/60)+' min'+(dur?' / '+Math.floor(dur/60)+' min':''):'Non commencé';text.append(strong,small);el.append(text);const play=document.createElement('button');
+play.textContent=vodAvailable?(Number(item.position_seconds||0)>0?'▶ Reprendre':'▶ Lire'):'Lecture indisponible';
+play.disabled=!vodAvailable;
+play.title=vodAvailable?'Démarrer la lecture vidéo':'Lecture VOD non activée sur cet hébergement';
+if(vodAvailable)play.onclick=()=>playEpisode(item);
+el.append(play);if(Number(item.position_seconds||0)>0){const resume=document.createElement('button');resume.textContent='Reprise enregistrée';resume.title='La lecture VOD sera disponible après intégration MP4/HLS';resume.disabled=true;el.append(resume);}$('episodes').append(el);}if(!$('episodes').children.length)$('episodes').textContent='Aucun épisode importé pour cette série.';}
 async function savePosition(force=false){const video=$('vodPlayer');if(!currentEpisode||!Number.isFinite(video.currentTime)||!Number.isFinite(video.duration))return;if(!force&&Date.now()-lastSaved<15000)return;lastSaved=Date.now();try{await api('/api/v1/me/library/'+currentEpisode.channel_id+'/progress',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({position_seconds:Math.floor(video.currentTime),duration_seconds:Math.floor(video.duration)})});}catch(e){status('Position non enregistrée : '+e.message);}}
-async function playEpisode(item){try{stopPlayer();status('Préparation de la lecture…');const data=await api('/api/v1/vod/items/'+item.channel_id+'/session',{method:'POST'});if(data.format!=='mp4')throw Error('Format non pris en charge');currentEpisode=item;const video=$('vodPlayer');$('playerBox').hidden=false;video.src=data.url;video.onloadedmetadata=()=>{const pos=Number(item.position_seconds||0);if(pos>0&&Number.isFinite(video.duration)&&pos<video.duration-10)video.currentTime=pos;};video.ontimeupdate=()=>{void savePosition();};video.onpause=()=>{void savePosition(true);};video.onended=()=>{void savePosition(true);};video.onerror=()=>status('Lecture impossible : vérifier le format et les requêtes Range du fournisseur.');await video.play();status('Lecture en cours');}catch(e){status('Lecture : '+e.message);}}
+async function playEpisode(item){
+ if(!vodAvailable){status('La lecture VOD n’est pas disponible sur ce serveur.');return;}
+ try{stopPlayer();status('Préparation de la lecture…');const data=await api('/api/v1/vod/items/'+item.channel_id+'/session',{method:'POST'});if(data.format!=='mp4')throw Error('Format non pris en charge');currentEpisode=item;const video=$('vodPlayer');$('playerBox').hidden=false;video.src=data.url;video.onloadedmetadata=()=>{const pos=Number(item.position_seconds||0);if(pos>0&&Number.isFinite(video.duration)&&pos<video.duration-10)video.currentTime=pos;};video.ontimeupdate=()=>{void savePosition();};video.onpause=()=>{void savePosition(true);};video.onended=()=>{void savePosition(true);};video.onerror=()=>status('Lecture impossible : vérifier le format et les requêtes Range du fournisseur.');await video.play();status('Lecture en cours');}catch(e){status('Lecture : '+e.message);}}
 function stopPlayer(){const v=$('vodPlayer');if(currentEpisode){void savePosition(true);}v.pause();v.removeAttribute('src');v.load();currentEpisode=null;$('playerBox').hidden=true;}
 $('stopVod').onclick=stopPlayer;window.addEventListener('pagehide',()=>{if(currentEpisode&&navigator.sendBeacon){/* No bearer in URL; explicit save on pause only. */}});
 $('season').onchange=renderEpisodes;$('back').onclick=()=>{stopPlayer();$('detail').classList.remove('open');$('browse').hidden=false;status('Catalogue des séries');};
