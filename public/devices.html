@@ -17,7 +17,18 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #6ddb
 #devices li span{overflow-wrap:anywhere}#message{color:#9fede4;min-height:1.5em}
 [hidden]{display:none!important}@media(max-width:520px){main{padding:12px}section{padding:13px}#devices li{align-items:flex-start;flex-direction:column}}
 </style><link rel="stylesheet" href="/assets/nsatellite-themes.css">
-<script src="/assets/nsatellite-auth.js"></script><script src="/assets/nsatellite-theme.js" defer></script></head>
+<script src="/assets/nsatellite-auth.js"></script><script>
+/* Fail closed with a useful error when the published auth module is unavailable. */
+if (!window.NSatelliteAuth) {
+ const authUnavailable = () => Promise.reject(new Error(
+  'Module NSatelliteAuth inaccessible : vérifie HTTP 200 sur /assets/nsatellite-auth.js, les droits public_html/assets (755), puis Ctrl+F5.'
+ ));
+ window.NSatelliteAuth = Object.freeze({
+  login:authUnavailable, session:authUnavailable,
+  logout:authUnavailable, request:authUnavailable, json:authUnavailable
+ });
+}
+</script><script src="/assets/nsatellite-theme.js" defer></script></head>
 <body><header><h1>◈ NSatellite · Mes appareils</h1><nav><a href="/home.html">Accueil</a><a href="/tv.html">TV</a><a href="/catalog.html">Catalogue</a></nav></header>
 <main><p id="message" role="status">Vérification de la session…</p>
 <section id="signin" hidden><h2>Connexion au compte</h2><div class="row">
