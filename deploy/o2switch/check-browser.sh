@@ -49,7 +49,7 @@ if command -v curl >/dev/null 2>&1; then
     code="$(curl --connect-timeout 5 --max-time 12 -sS -o /dev/null -w '%{http_code}' "$BASE$path" 2>/dev/null || true)"
     printf "%-37s %s\n" "$path" "${code:-réseau indisponible}"
     case "$path" in
-      /home.html|/tv.html|/assets/nsatellite-themes.css|/assets/nsatellite-theme.js|/assets/nsatellite-auth.js)
+      /home.html|/tv.html|/account.html|/assets/nsatellite-themes.css|/assets/nsatellite-theme.js|/assets/nsatellite-auth.js)
         if [[ "$code" != 200 ]]; then
           echo "ERREUR : ressource essentielle HTTP $code ($path)."
           echo "Vérifie les permissions du dossier public_html/assets, puis le DocumentRoot."
