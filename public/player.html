@@ -1,58 +1,8 @@
-<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nels TV — Lecteur HLS</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#080d18;color:#f7f9fc;font:16px system-ui}body[data-theme="mediasat"]{--accent:#efc943;--panel:#0b3473;--bg:#14254a}body[data-theme="tps"]{--accent:#e1ad4d;--panel:#234b91;--bg:#112c63}body[data-theme="nos"]{--accent:#66dcca;--panel:#172635;--bg:#081722}
-main{max-width:1300px;margin:auto;padding:22px}header{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
-h1{margin:0 0 8px;font-size:26px}a{color:var(--accent)}select,input,button{background:var(--panel);border:1px solid var(--accent);border-radius:7px;color:#fff;padding:12px}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-form{display:flex;gap:8px;margin:17px 0;flex-wrap:wrap}input{flex:1;min-width:270px}.screen{background:var(--bg);position:relative;aspect-ratio:16/9;border:2px solid #3d506c;border-radius:12px;overflow:hidden}video{height:100%;width:100%;object-fit:contain;background:#000}.banner{position:absolute;left:3%;bottom:5%;max-width:75%;background:var(--panel);border-left:6px solid var(--accent);padding:13px 22px;pointer-events:none;transition:opacity .3s}.banner.hidden{opacity:0}.banner strong{display:block;font-size:27px}.banner small{color:#cbd7e4}.buttons{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}#message{min-height:26px;color:#d8e6f7}small{color:#becddd}
-@media(max-width:650px){.banner strong{font-size:18px}.banner{padding:8px;max-width:94%}}
-</style>
-<link rel="stylesheet" href="/assets/nsatellite-themes.css"><script src="/assets/nsatellite-theme.js" defer></script></head><body data-theme="nos"><main>
-<header><div><h1>Nels TV · Lecteur</h1><small>Prototype HLS pour flux autorisés — thèmes d'inspiration historique</small></div>
-<div><label for="theme">Thème </label><select id="theme"><option value="nos">NOS moderne</option><option value="mediasat">CanalSatellite 1996 (inspiré)</option><option value="tps">TPS 1998 (inspiré)</option></select></div></header>
-<form id="form"><input id="stream" type="url" required placeholder="https://exemple.org/chaine/index.m3u8" aria-label="URL HLS autorisée" autocomplete="off"><button type="submit">Lire le flux</button></form>
-<div class="screen" id="screen"><video id="video" playsinline controls aria-label="Lecteur vidéo IPTV"></video>
-<div id="banner" class="banner"><small>001 · NELS TV</small><strong id="program">Télévision en direct</strong><small id="details">En attente de lecture</small></div></div>
-<div class="buttons"><button id="play" type="button">Lecture / Pause</button><button id="mute" type="button">Son</button><button id="fullscreen" type="button">Plein écran</button><button id="bannerButton" type="button">Bandeau</button><a href="/tv.html">Guide TV</a></div>
-<p id="message" role="status">Colle une URL HLS accessible depuis le navigateur pour essayer le moteur.</p>
-<small>Ce prototype lit les flux HLS compatibles avec le navigateur et CORS. Il ne récupère pas les URL privées depuis la base et n'émule pas les DRM. Les flux MPEG-TS bruts, AVI et MKV restent à traiter avec des lecteurs ou convertisseurs dédiés. Évite de coller ici des URL contenant tes identifiants : elles seraient utilisées directement par le navigateur.</small>
-</main>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
-<script>
-'use strict';
-const $=id=>document.getElementById(id);
-const video=$('video');let engine=null,hideTimer=null;
-function message(text){$('message').textContent=text;}
-function showBanner(){clearTimeout(hideTimer);$('banner').classList.remove('hidden');hideTimer=setTimeout(()=>$('banner').classList.add('hidden'),6000);}
-function stop(){if(engine){engine.destroy();engine=null;}video.pause();video.removeAttribute('src');video.load();}
-async function start(url){
- stop();const parsed=new URL(url);
- if(parsed.protocol!=='https:' && parsed.protocol!=='http:')throw Error('Seuls les flux HTTP(S) sont acceptés.');
- if(parsed.username||parsed.password)throw Error('Les identifiants dans les URL sont interdits sur cette page.');
- if(parsed.searchParams.has('username')||parsed.searchParams.has('password'))throw Error('Utilise le futur relais sécurisé pour les flux privés.');
- showBanner();$('details').textContent='Connexion…';message('Connexion au flux…');
- if(video.canPlayType('application/vnd.apple.mpegurl')){video.src=url;await video.play();return;}
- if(!window.Hls||!Hls.isSupported())throw Error('HLS non pris en charge sur cet appareil.');
- engine=new Hls({enableWorker:true,maxBufferLength:25,backBufferLength:20});
- engine.on(Hls.Events.ERROR,(_,data)=>{
-   if(!data.fatal){message('Incident de streaming : reprise en cours…');return;}
-   if(data.type===Hls.ErrorTypes.NETWORK_ERROR){message('Erreur réseau ou CORS. Nouvelle tentative…');engine.startLoad();}
-   else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){message('Erreur média : tentative de récupération…');engine.recoverMediaError();}
-   else {message('Lecture impossible : '+data.details);stop();}
- });
- engine.on(Hls.Events.MANIFEST_PARSED,async()=>{try{await video.play();}catch{message('Appuie sur Lecture pour démarrer.');}});
- engine.loadSource(url);engine.attachMedia(video);
-}
-$('form').addEventListener('submit',async e=>{e.preventDefault();try{await start($('stream').value.trim());}catch(err){message(err.message);}});
-$('theme').addEventListener('change',()=>{document.body.dataset.theme=$('theme').value;showBanner();});
-$('play').onclick=async()=>{try{if(video.paused)await video.play();else video.pause();}catch(err){message(err.message);}};
-$('mute').onclick=()=>{video.muted=!video.muted;};
-$('fullscreen').onclick=()=>{$('screen').requestFullscreen?.().catch(()=>message('Plein écran indisponible'));};
-$('bannerButton').onclick=showBanner;
-video.addEventListener('playing',()=>{$('details').textContent='DIRECT';message('Lecture en cours');showBanner();});
-video.addEventListener('waiting',()=>message('Mise en mémoire tampon…'));
-video.addEventListener('error',()=>message('Erreur de lecture native. Vérifie le flux et les codecs.'));
-document.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;if(e.key===' '){e.preventDefault();$('play').click();}if(e.key==='Escape')$('banner').classList.add('hidden');});
-window.addEventListener('pagehide',stop);
-</script></body></html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="0;url=/tv.html"><title>NSatellite — Décodeur unifié</title>
+<link rel="stylesheet" href="/assets/nsatellite-themes.css"></head>
+<body style="font:16px system-ui;background:#0b1a2d;color:#f3f9ff;padding:40px">
+<h1>◈ NSatellite</h1><p>Le lecteur expérimental a été intégré au décodeur principal.</p>
+<p><a href="/tv.html" style="color:#77e7db">Ouvrir la télévision NSatellite</a></p>
+<p><a href="/account.html" style="color:#77e7db">Configurer mes accès IPTV</a></p>
+<script>location.replace('/tv.html');</script></body></html>
