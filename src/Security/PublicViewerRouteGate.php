@@ -17,6 +17,7 @@ final class PublicViewerRouteGate
         bool $directHlsEnabled
     ): bool {
         if ($method === 'GET' && $path === '/api/health') return true;
+        if ($method === 'GET' && $path === '/api/capabilities') return true;
 
         if (!$identityEnabled) return false;
 
