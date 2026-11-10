@@ -51,7 +51,7 @@ if (!window.NSatelliteAuth) {
 <body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/home.html" style="color:#7cd4e3">Accueil</a> · <a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a> · <button id="browserLogout" type="button" hidden>Déconnexion</button></span></header>
 <div class="controls"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Mot de passe <input id="password" type="password" autocomplete="current-password"></label><button id="login">Connexion Nels TV</button></div>
 <details><summary>Accès administrateur local (ancien mode)</summary><label>Jeton local <input id="token" type="password" autocomplete="off"></label></details><button id="load">Ouvrir le bouquet</button>
-<div id="navigation"><label>Rechercher <input id="search" type="search" placeholder="Nom ou catégorie" aria-label="Rechercher une chaîne"></label><label>Numéro <input id="channelNumber" type="number" min="1" max="99999" placeholder="Ex. 12" aria-label="Numéro de chaîne"></label><button id="goNumber">Aller</button><button id="favoritesOnly" type="button" aria-pressed="false">☆ Toutes les chaînes</button><span id="matches" role="status"></span></div>
+<div id="navigation"><label>Rechercher <input id="search" type="search" placeholder="Nom ou catégorie" aria-label="Rechercher une chaîne"></label><label>Numéro <input id="channelNumber" type="number" min="1" max="99999" placeholder="Ex. 12" aria-label="Numéro de chaîne"></label><button id="goNumber">Aller</button><button id="favoritesOnly" type="button" aria-pressed="false">☆ Toutes les chaînes</button><span id="matches" role="status"></span><button id="searchMore" type="button" hidden>100 résultats supplémentaires</button></div>
 <div id="desktopPlayer"><div id="playerColumn"><div class="screen" id="screen"><video id="video" playsinline controls aria-label="Chaîne en direct"></video><p id="status" role="status">Choisis une chaîne pour commencer</p><output id="digits" hidden aria-live="polite"></output><div id="banner" aria-live="off"><div class="ns-onair"><span>NSatellite</span><span class="ns-theme-signature" aria-hidden="true"></span></div><div id="number">—</div><strong id="name">Aucune chaîne</strong><div id="now">Sélectionne une chaîne</div><progress id="bannerProgress" max="100" value="0" hidden aria-label="Progression du programme en cours"></progress></div><button id="screenMenuButton" type="button" aria-controls="decoderMenu" aria-expanded="false">☰ Chaînes</button>
 <div id="decoderMenu" hidden role="dialog" aria-label="Navigation dans le bouquet">
  <div id="decoderPanel" tabindex="-1">
@@ -63,23 +63,74 @@ if (!window.NSatelliteAuth) {
   <label class="menuFavorites"><input id="menuFavorites" type="checkbox"> Uniquement mes favoris</label>
   <small id="menuCount" role="status">Charge le bouquet pour naviguer.</small><small>↑ ↓ chaînes · ← → catégories · Entrée regarder · Retour fermer</small>
   <ul id="menuList" aria-label="Chaînes disponibles"></ul>
-  <div class="menuPage"><button id="menuPrev" type="button">← Précédentes</button><span id="menuPage">Page 1</span><button id="menuNext" type="button">Suivantes →</button></div>
+  <div class="menuPage"><button id="menuPrev" type="button">← Précédentes</button><span id="menuPage">Page 1</span><button id="menuNext" type="button">Suivantes →</button></div><button id="menuLoadMore" type="button">Charger plus de chaînes</button>
   <div id="menuProgram"><h3>Programme TV</h3><p id="menuNow">Choisis une chaîne.</p><p id="menuNextProgramme"></p></div>
   <button id="menuTune" type="button" disabled>Regarder cette chaîne</button>
  </div>
 </div></div>
-<div id="playbackActions"><button id="retryPlayback" hidden type="button">Réessayer la chaîne</button><span id="playbackHint" role="status" aria-live="polite"></span><span id="connectionState" data-state="idle" role="status">En attente</span><label for="quality">Qualité <select id="quality" disabled><option value="-1">Automatique</option></select></label><small id="playbackDiagnostics" aria-live="polite">Diagnostic : aucune lecture en cours</small></div></div><aside id="channelSidebar" aria-label="Liste des chaînes"><h2>Chaînes du bouquet</h2><label id="sidebarPanelLabel" for="sidebarSearch">Rechercher dans la liste</label><input id="sidebarSearch" type="search" placeholder="Chaîne ou catégorie" autocomplete="off"><p id="sidebarCount" role="status">Charge ton bouquet pour naviguer.</p><ol id="sidebarList"></ol><div id="sidebarPaging"><button id="sidebarPrev" type="button">←</button><span id="sidebarPage">Page 1</span><button id="sidebarNext" type="button">→</button></div></aside></div>
+<div id="playbackActions"><button id="retryPlayback" hidden type="button">Réessayer la chaîne</button><span id="playbackHint" role="status" aria-live="polite"></span><span id="connectionState" data-state="idle" role="status">En attente</span><label for="quality">Qualité <select id="quality" disabled><option value="-1">Automatique</option></select></label><small id="playbackDiagnostics" aria-live="polite">Diagnostic : aucune lecture en cours</small></div></div><aside id="channelSidebar" aria-label="Liste des chaînes"><h2>Chaînes du bouquet</h2><label id="sidebarPanelLabel" for="sidebarSearch">Rechercher dans la liste</label><input id="sidebarSearch" type="search" placeholder="Chaîne ou catégorie" autocomplete="off"><p id="sidebarCount" role="status">Charge ton bouquet pour naviguer.</p><ol id="sidebarList"></ol><div id="sidebarPaging"><button id="sidebarPrev" type="button">←</button><span id="sidebarPage">Page 1</span><button id="sidebarNext" type="button">→</button></div><button id="loadMore" type="button">Charger 100 chaînes supplémentaires</button><small id="loadMoreState" role="status"></small></aside></div>
 <div class="controls"><button id="previous" aria-label="Chaîne précédente">CH −</button><button id="next" aria-label="Chaîne suivante">CH +</button><button id="guideButton" aria-expanded="false" aria-controls="guide">Afficher le guide</button><button id="multiGuideButton" type="button" aria-expanded="false" aria-controls="multiGuide">Grille TV multichaîne</button><button id="fullscreen" type="button">Plein écran</button><button id="decoderMenuButton" type="button" aria-controls="decoderMenu" aria-expanded="false">Menu décodeur</button><button id="toggleMute" type="button" aria-pressed="false">Couper le son</button><button id="showBanner" type="button">Infos chaîne</button><span id="info">Utilise ↑ ↓ pour zapper</span></div><p id="remoteHelp">Télécommande : ↑ ↓ pour zapper · chiffres puis Entrée pour sélectionner · I : infos · G : guide · F : plein écran · M : son · O : menu des chaînes · Échap : fermer.</p><section id="guide" hidden aria-label="Guide des programmes"><p class="ns-guide-kicker">Programmation · Émissions</p><header><h2>Guide TV · <span id="guideChannel">Chaîne</span></h2><div id="guideNav"><button id="guidePrevious" type="button">← Chaîne</button><button id="guideNext" type="button">Chaîne →</button><button id="guideRefresh" type="button">Actualiser</button></div></header><p id="guideState" role="status">Ouvre un bouquet pour consulter les programmes.</p><div id="nowNext"><article><h3>En ce moment</h3><strong id="currentTitle">Non renseigné</strong><small id="currentTime"></small><progress id="progress" max="100" value="0" aria-label="Progression du programme"></progress><small id="progressText"></small></article><article><h3>À suivre</h3><strong id="nextTitle">Non renseigné</strong><small id="nextTime"></small></article></div><h3>Programmes à venir</h3><ul id="programmes"></ul></section>
 <section id="multiGuide" hidden aria-label="Grille des programmes multichaîne" aria-busy="false"><p class="ns-guide-kicker">Guide électronique des programmes</p><header><h2>Grille TV · Toutes les chaînes</h2><div id="multiGuideControls"><button id="gridPrev" type="button">← Précédentes</button><span id="gridPage">Page 1</span><button id="gridNext" type="button">Suivantes →</button><button id="gridRefresh" type="button">Actualiser</button></div></header><p id="gridSummary" role="status">Ouvre ton bouquet pour afficher le guide multichaîne.</p><div id="gridRows" aria-label="Programmes actuels et suivants"></div></section>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay';
+const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay',catalogPage=1,catalogTotal=0,catalogExhausted=false,catalogLoading=false,catalogSerial=0,channelIndexById=new Map(),searchResultIds=null,searchPage=1,searchTotal=0,searchTicket=0,searchDebounce=null,searchLoading=false;
 function authHeaders(){return $('token').value?{'X-Admin-Token':$('token').value}:{};}
 async function get(path){return NSatelliteAuth.json('/api/'+path,{headers:authHeaders()});}
 function isFavorite(c){return c.favorite===true||c.favorite===1||c.favorite==='1';}
-function matchingIndices(){const query=$('search').value.trim().toLocaleLowerCase('fr');return channels.map((c,i)=>({c,i})).filter(({c})=>(!favoritesOnly||isFavorite(c))&&(!query||(c.name+' '+(c.group_name||'')+' '+(c.channel_number??'')).toLocaleLowerCase('fr').includes(query))).map(({i})=>i);}
-function updateMatches(){const matches=matchingIndices();$('matches').textContent=matches.length+' / '+channels.length+' chaînes';if(!$('multiGuide').hidden)drawGrid();drawSidebar();return matches;}
+function matchingIndices(){
+ const query=$('search').value.trim().toLocaleLowerCase('fr');
+ return channels.map((c,i)=>({c,i})).filter(({c})=>
+  (!favoritesOnly||isFavorite(c)) &&
+  (searchResultIds!==null?searchResultIds.has(String(c.id)):
+   (!query||(c.name+' '+(c.group_name||'')+' '+(c.channel_number??'')).toLocaleLowerCase('fr').includes(query)))
+ ).map(({i})=>i);
+}
+function updateMatches(){
+ const matches=matchingIndices();
+ $('matches').textContent=searchResultIds!==null
+  ?matches.length+' / '+searchTotal+' résultat(s) dans le bouquet'
+  :channels.length+' chaîne(s) en mémoire sur '+catalogTotal+' au total';
+ $('searchMore').hidden=searchResultIds===null||searchResultIds.size>=searchTotal;
+ $('loadMore').hidden=catalogExhausted;
+ if(!$('multiGuide').hidden)drawGrid();
+ drawSidebar();return matches;
+}
 const SIDEBAR_PAGE_SIZE=50;
+async function searchLineup(reset=true){
+ const query=$('search').value.trim();
+ if(reset){
+  ++searchTicket;searchPage=1;searchTotal=0;searchResultIds=new Set();
+ }
+ if(!query&&!favoritesOnly){
+  ++searchTicket;searchResultIds=null;searchLoading=false;
+  updateMatches();if(!$('decoderMenu').hidden)rebuildMenu();return;
+ }
+ if(query.length>100){$('info').textContent='Recherche trop longue (100 caractères max)';return;}
+ if(searchLoading&&!reset)return;
+ const ticket=++searchTicket;searchLoading=true;$('searchMore').disabled=true;
+ $('matches').textContent='Recherche dans tout le bouquet…';
+ try{
+  const params=new URLSearchParams({page:String(searchPage),limit:'100',q:query,favorites:favoritesOnly?'1':'0'});
+  const data=await get('lineup?'+params);
+  if(ticket!==searchTicket)return;
+  const items=Array.isArray(data.items)?data.items:[];
+  cacheChannels(items);
+  for(const item of items)searchResultIds.add(String(item.id));
+  searchTotal=Math.max(0,Number(data.total)||0);
+  searchPage++;
+  updateMatches();
+  if(!$('decoderMenu').hidden)rebuildMenu();
+ }catch(error){
+  if(ticket===searchTicket)$('info').textContent='Recherche impossible : '+error.message;
+ }finally{
+  if(ticket===searchTicket){searchLoading=false;$('searchMore').disabled=false;}
+ }
+}
+function scheduleSearch(){
+ clearTimeout(searchDebounce);++searchTicket;
+ searchResultIds=new Set();searchTotal=0;updateMatches();
+ searchDebounce=setTimeout(()=>{void searchLineup(true);},250);
+}
 function sidebarMatches(){
  const query=$('sidebarSearch').value.trim().toLocaleLowerCase('fr');
  return matchingIndices().filter(i=>!query||(channels[i].name+' '+(channels[i].group_name||'')+' '+(channels[i].channel_number??'')).toLocaleLowerCase('fr').includes(query));
@@ -160,6 +211,7 @@ function paintMenu(){
  $('menuPrev').disabled=page===0;
  $('menuNext').disabled=page>=pages-1;
  $('menuTune').disabled=count===0;
+ $('menuLoadMore').hidden=catalogExhausted;
  const fragment=document.createDocumentFragment();
  menuCandidates.slice(page*MENU_PAGE_SIZE,(page+1)*MENU_PAGE_SIZE).forEach((channelIndex,offset)=>{
   const position=page*MENU_PAGE_SIZE+offset,c=channels[channelIndex],li=document.createElement('li'),button=document.createElement('button');
@@ -201,6 +253,7 @@ function setMenuOpen(open){
  menu.hidden=!open;
  for(const id of ['decoderMenuButton','screenMenuButton'])$(id).setAttribute('aria-expanded',String(open));
  if(!open){clearTimeout(menuPreviewTimer);++menuPreviewSerial;menuPreviewId=null;showBanner();$('screenMenuButton').focus({preventScroll:true});return;}
+ $('menuSearch').value=$('search').value;$('menuFavorites').checked=favoritesOnly;
  menuOptions();rebuildMenu();$('decoderPanel').focus();
 }
 function showBanner(){clearTimeout(bannerTimeout);$('banner').classList.remove('hidden');bannerTimeout=setTimeout(()=>$('banner').classList.add('hidden'),7000);}
@@ -385,13 +438,97 @@ async function loadGuide(){
   $('now').textContent=channels[index].group_name||'Télévision en direct';
  }
 }
-async function load(){try{channels=[];for(let page=1;page<=10;page++){let d=await get('lineup?page='+page+'&limit=100');channels.push(...d.items);if(d.items.length<100)break;}let last=null;try{last=localStorage.getItem('nels-tv-last-channel');}catch{}const lastIndex=channels.findIndex(c=>String(c.id)===last);const requested=new URLSearchParams(location.search).get('channel');const requestedIndex=/^[1-9][0-9]*$/.test(requested||'')?channels.findIndex(c=>String(c.id)===requested):-1;index=requestedIndex>=0?requestedIndex:(lastIndex>=0?lastIndex:0);if(channels.length)render();else{stopPlayer();$('name').textContent='Aucune chaîne disponible';}updateMatches();$('info').textContent=channels.length+' chaînes chargées (max. 1000)';}catch(e){$('info').textContent=e.message;}}
-function zap(step){const matches=updateMatches();if(!matches.length){$('info').textContent='Aucune chaîne correspondante';return;}const position=matches.indexOf(index);index=matches[(position+step+matches.length)%matches.length];render();}
+function cacheChannels(items){
+ for(const c of items){
+  if(!c||c.id==null)continue;
+  const key=String(c.id),existing=channelIndexById.get(key);
+  if(existing===undefined){channelIndexById.set(key,channels.length);channels.push(c);}
+  else channels[existing]={...channels[existing],...c};
+ }
+}
+function clearSearchFilter(){
+ ++searchTicket;clearTimeout(searchDebounce);
+ searchResultIds=null;searchPage=1;searchTotal=0;searchLoading=false;
+ $('search').value='';$('sidebarSearch').value='';$('menuSearch').value='';$('menuFavorites').checked=false;
+ favoritesOnly=false;$('favoritesOnly').setAttribute('aria-pressed','false');
+ $('favoritesOnly').textContent='☆ Toutes les chaînes';
+ $('searchMore').hidden=true;
+}
+async function fetchById(channelId){
+ const data=await get('lineup?'+new URLSearchParams({channel_id:String(channelId),page:'1',limit:'1'}));
+ const item=Array.isArray(data.items)?data.items[0]:null;
+ if(item)cacheChannels([item]);
+ return item?channelIndexById.get(String(item.id)):-1;
+}
+async function loadMoreCatalog(){
+ if(catalogLoading||catalogExhausted)return;
+ const ticket=catalogSerial;catalogLoading=true;
+ $('loadMore').disabled=true;$('loadMoreState').textContent='Chargement du bouquet…';
+ try{
+  const data=await get('lineup?'+new URLSearchParams({page:String(catalogPage),limit:'100'}));
+  if(ticket!==catalogSerial)return;
+  const items=Array.isArray(data.items)?data.items:[];
+  cacheChannels(items);
+  catalogTotal=Math.max(0,Number(data.total)||0);
+  catalogPage++;
+  catalogExhausted=items.length<100||(catalogTotal>0&&(catalogPage-1)*100>=catalogTotal);
+  $('loadMoreState').textContent=Math.min((catalogPage-1)*100,catalogTotal)+' / '+catalogTotal+' chaînes parcourues';
+  updateMatches();
+ }catch(error){
+  if(ticket===catalogSerial)$('loadMoreState').textContent='Chargement impossible : '+error.message;
+ }finally{
+  if(ticket===catalogSerial){
+   catalogLoading=false;$('loadMore').disabled=false;
+   $('loadMore').hidden=catalogExhausted;
+  }
+ }
+}
+async function load(){
+ const ticket=++catalogSerial;catalogLoading=false;catalogExhausted=false;
+ catalogPage=1;catalogTotal=0;channels=[];channelIndexById.clear();
+ clearSearchFilter();index=0;$('info').textContent='Chargement du bouquet…';
+ await loadMoreCatalog();
+ if(ticket!==catalogSerial)return;
+ let requested=new URLSearchParams(location.search).get('channel'),last=null;
+ try{last=localStorage.getItem('nels-tv-last-channel');}catch{}
+ let target=/^[1-9][0-9]{0,14}$/.test(requested||'')?requested:/^[1-9][0-9]{0,14}$/.test(last||'')?last:null;
+ if(target && !channelIndexById.has(String(target))){
+  try{await fetchById(target);}catch(error){$('info').textContent='Dernière chaîne indisponible : '+error.message;}
+ }
+ if(ticket!==catalogSerial)return;
+ index=target&&channelIndexById.has(String(target))?channelIndexById.get(String(target)):0;
+ if(channels.length)render();else{stopPlayer();$('name').textContent='Aucune chaîne disponible';}
+ updateMatches();
+ $('info').textContent=channels.length+' chaîne(s) disponibles en mémoire · recherche sur tout le bouquet';
+}
+async function zap(step){
+ let matches=matchingIndices();if(!matches.length){$('info').textContent='Aucune chaîne correspondante';return;}
+ let position=matches.indexOf(index);
+ if(step>0&&position===matches.length-1){
+  if(searchResultIds!==null&&searchResultIds.size<searchTotal)await searchLineup(false);
+  else if(searchResultIds===null&&!catalogExhausted)await loadMoreCatalog();
+  matches=matchingIndices();position=matches.indexOf(index);
+ }
+ index=position<0?(step>0?matches[0]:matches[matches.length-1]):matches[(position+step+matches.length)%matches.length];
+ render();
+}
 function selectFirstMatch(){const matches=updateMatches();if(!matches.length){$('info').textContent='Aucune chaîne correspondante';return;}index=matches[0];render();}
-function selectNumberValue(number){if(!Number.isSafeInteger(number)||number<1){$('info').textContent='Entre un numéro de chaîne valide';return;}const found=channels.findIndex(c=>Number(c.channel_number)===number&&c.channel_number!==null);if(found<0){$('info').textContent='Numéro '+number+' introuvable dans le bouquet chargé';return;}index=found;$('channelNumber').value=String(number);$('search').value='';favoritesOnly=false;$('favoritesOnly').setAttribute('aria-pressed','false');$('favoritesOnly').textContent='☆ Toutes les chaînes';render();}
+async function selectNumberValue(number){
+ if(!Number.isSafeInteger(number)||number<1||number>99999){$('info').textContent='Entre un numéro de chaîne valide (1 à 99999)';return;}
+ let found=channels.findIndex(c=>Number(c.channel_number)===number&&c.channel_number!==null);
+ if(found<0){
+  try{
+   const data=await get('lineup?'+new URLSearchParams({channel_number:String(number),limit:'1'}));
+   const c=Array.isArray(data.items)?data.items[0]:null;
+   if(c){cacheChannels([c]);found=channelIndexById.get(String(c.id));}
+  }catch(error){$('info').textContent='Recherche du numéro : '+error.message;return;}
+ }
+ if(found<0){$('info').textContent='Numéro '+number+' introuvable ou non autorisé';return;}
+ index=found;$('channelNumber').value=String(number);clearSearchFilter();render();
+}
 function selectNumber(){selectNumberValue(Number($('channelNumber').value));}
 const GRID_SIZE=8;
-function gridMatches(){const query=$('search').value.trim().toLocaleLowerCase('fr');return channels.filter(c=>(!favoritesOnly||isFavorite(c))&&(!query||(c.name+' '+(c.group_name||'')+' '+(c.channel_number??'')).toLocaleLowerCase('fr').includes(query)));}
+function gridMatches(){return matchingIndices().map(i=>channels[i]);}
 function gridCell(text,className=''){const cell=document.createElement('div');cell.className='gridCell '+className;cell.textContent=text;return cell;}
 function gridHeader(text){const element=document.createElement('div');element.className='gridHead';element.textContent=text;return element;}
 function epgPreview(items){
@@ -479,7 +616,7 @@ $('login').onclick=async()=>{
 $('browserLogout').onclick=async()=>{
  try{
   await NSatelliteAuth.logout();showBrowserSession(false);
-  ++requestId;playingId=null;stopPlayer();channels=[];index=0;updateMatches();drawSidebar();
+  ++requestId;++catalogSerial;playingId=null;stopPlayer();channels=[];channelIndexById.clear();index=0;catalogTotal=0;catalogExhausted=true;clearSearchFilter();updateMatches();drawSidebar();
   $('name').textContent='Connecte-toi pour regarder';$('info').textContent='Déconnecté';
  }catch(error){$('info').textContent='Déconnexion impossible : '+error.message;}
 };
@@ -492,7 +629,26 @@ async function restoreBrowserSession(){
  }catch(error){$('info').textContent='Vérification de connexion : '+error.message;}
 }
 void restoreBrowserSession();
-$('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
+$('load').onclick=load;
+$('loadMore').onclick=()=>{void loadMoreCatalog();};
+$('searchMore').onclick=()=>{void searchLineup(false);};
+$('menuLoadMore').onclick=async()=>{await loadMoreCatalog();menuOptions();rebuildMenu();};
+$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{
+ $('search').value=$('sidebarSearch').value;sidebarPage=0;scheduleSearch();
+});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{$('sidebarSearch').value=$('search').value;sidebarPage=0;scheduleSearch();});$('search').addEventListener('keydown',async e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(searchDebounce);await searchLineup(true);selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{
+ favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));
+ $('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';
+ $('menuFavorites').checked=favoritesOnly;void searchLineup(true);
+};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=()=>{
+ $('search').value=$('menuSearch').value;$('sidebarSearch').value=$('menuSearch').value;
+ scheduleSearch();rebuildMenu();
+};
+$('menuFavorites').onchange=()=>{
+ favoritesOnly=$('menuFavorites').checked;
+ $('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));
+ $('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';
+ void searchLineup(true);
+};$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
 document.addEventListener('keydown',e=>{
  if(e.altKey||e.ctrlKey||e.metaKey)return;
  if(!$('decoderMenu').hidden){
@@ -512,5 +668,5 @@ document.addEventListener('keydown',e=>{
  if(actions[e.key]){e.preventDefault();actions[e.key]();}
 });
 epgTimer=setInterval(refreshEpgDisplay,30000);
-window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);clearTimeout(menuPreviewTimer);++menuPreviewSerial;stopPlayer();});
+window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);clearTimeout(searchDebounce);++searchTicket;++catalogSerial;clearTimeout(menuPreviewTimer);++menuPreviewSerial;stopPlayer();});
 </script></main></body></html>

@@ -22,6 +22,8 @@ jobs:
         run: node tests/check_static_pages.mjs
       - name: Test browser session client
         run: node --test tests/browser_auth_client.test.mjs
+      - name: Test large-catalog PC/TV navigation contracts
+        run: node --test tests/tv_large_catalog_contract.test.mjs
       - name: Syntax-check deployment scripts
         run: |
           bash -n deploy/o2switch/install-viewer.sh
@@ -58,3 +60,4 @@ jobs:
           php tests/source_access_smoke.php
           php tests/session_lifecycle_smoke.php
           php tests/identity_workflow_smoke.php
+          php tests/lineup_server_search_smoke.php
