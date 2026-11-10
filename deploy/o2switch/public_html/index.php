@@ -46,7 +46,7 @@ if (!PublicViewerRouteGate::allows($method,$path,$identityEnabled,$viewerEnabled
 if (!$health && (!$secure || !$validHost)) {
     denyRequest(403, 'HTTPS and valid hostname required');
 }
-if (!$health && in_array($request->getMethod(), ['POST', 'PATCH', 'DELETE'], true)) {
+if (!$health && in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
     $origin = (string)$request->headers->get('Origin', '');
     if ($origin !== '' && $origin !== 'https://'.$expectedHost) {
         denyRequest(403, 'Origin rejected');
