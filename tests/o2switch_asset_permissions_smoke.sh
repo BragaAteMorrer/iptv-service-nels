@@ -7,7 +7,7 @@ trap 'rm -rf "$ROOT"' EXIT
 mkdir -p "$ROOT/deploy/o2switch/public_html" "$ROOT/public/assets" "$ROOT/public_html/assets" "$ROOT/vendor"
 cp deploy/o2switch/install-viewer.sh "$ROOT/deploy/o2switch/install-viewer.sh"
 cp deploy/o2switch/public_html/{index.html,index.php,.htaccess} "$ROOT/deploy/o2switch/public_html/"
-for page in home.html tv.html catalog.html series.html lineup.html player.html devices.html; do
+for page in home.html tv.html catalog.html series.html lineup.html player.html devices.html account.html; do
   cp "public/$page" "$ROOT/public/$page"
 done
 for asset in nsatellite-themes.css nsatellite-theme.js nsatellite-auth.js; do
