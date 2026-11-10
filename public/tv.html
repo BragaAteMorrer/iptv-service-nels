@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nels TV — Décodeur</title><style>
+<title>NSatellite — Décodeur</title><style>
 *{box-sizing:border-box}body{margin:0;color:#ecf5ff;background:#070d16;font:16px system-ui}main{max-width:1350px;margin:auto;padding:25px}header{display:flex;align-items:center;justify-content:space-between}
 h1{font-size:24px}button,input{background:#243550;border:1px solid #57708c;border-radius:10px;color:white;padding:12px}button{cursor:pointer}button:focus-visible{outline:4px solid #70e7df}
 .screen{overflow:hidden;aspect-ratio:16/9;background:linear-gradient(135deg,#121b31,#0b2837);border:1px solid #3a5871;border-radius:18px;display:flex;flex-direction:column;justify-content:flex-end;padding:30px;position:relative}
@@ -48,9 +48,9 @@ if (!window.NSatelliteAuth) {
  });
 }
 </script></head>
-<body><main><header><h1>NELS TV <small>· Décodeur</small></h1><span><a href="/home.html" style="color:#7cd4e3">Accueil</a> · <a href="/lineup.html" style="color:#7cd4e3">Organiser les chaînes</a> · <a href="/player.html" style="color:#7cd4e3">Lecteur HLS expérimental</a> · <button id="browserLogout" type="button" hidden>Déconnexion</button></span></header>
+<body><main><header><h1>◈ NSatellite <small>· Décodeur</small></h1><nav aria-label="Navigation principale"><a href="/home.html">Accueil</a> · <a href="/catalog.html">Catalogue</a> · <a href="/series.html">Séries</a> · <a href="/lineup.html">Mes chaînes</a> · <a href="/devices.html">Appareils</a> · <a href="/account.html">Mon espace</a> · <button id="browserLogout" type="button" hidden>Déconnexion</button></nav></header>
 <div class="controls"><label>E-mail <input id="email" type="email" autocomplete="username"></label><label>Mot de passe <input id="password" type="password" autocomplete="current-password"></label><button id="login">Connexion Nels TV</button></div>
-<details><summary>Accès administrateur local (ancien mode)</summary><label>Jeton local <input id="token" type="password" autocomplete="off"></label></details><button id="load">Ouvrir le bouquet</button>
+<button id="load" type="button">Actualiser mon bouquet</button> <a href="/account.html">Configurer mes accès IPTV</a>
 <div id="navigation"><label>Rechercher <input id="search" type="search" placeholder="Nom ou catégorie" aria-label="Rechercher une chaîne"></label><label>Numéro <input id="channelNumber" type="number" min="1" max="99999" placeholder="Ex. 12" aria-label="Numéro de chaîne"></label><button id="goNumber">Aller</button><button id="favoritesOnly" type="button" aria-pressed="false">☆ Toutes les chaînes</button><span id="matches" role="status"></span><button id="searchMore" type="button" hidden>100 résultats supplémentaires</button></div>
 <div id="desktopPlayer"><div id="playerColumn"><div class="screen" id="screen"><video id="video" playsinline controls aria-label="Chaîne en direct"></video><p id="status" role="status">Choisis une chaîne pour commencer</p><output id="digits" hidden aria-live="polite"></output><div id="banner" aria-live="off"><div class="ns-onair"><span>NSatellite</span><span class="ns-theme-signature" aria-hidden="true"></span></div><div id="number">—</div><strong id="name">Aucune chaîne</strong><div id="now">Sélectionne une chaîne</div><progress id="bannerProgress" max="100" value="0" hidden aria-label="Progression du programme en cours"></progress></div><button id="screenMenuButton" type="button" aria-controls="decoderMenu" aria-expanded="false">☰ Chaînes</button>
 <div id="decoderMenu" hidden role="dialog" aria-label="Navigation dans le bouquet">
@@ -74,7 +74,7 @@ if (!window.NSatelliteAuth) {
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);let channels=[],index=0,hls=null,playingId=null,requestId=0,favoritesOnly=false,bannerTimeout=null,digitsTimeout=null,digitsBuffer='',epgItems=[],epgChannelId=null,epgRequestId=0,epgTimer=null,gridPage=0,gridRequestId=0,gridCache=new Map(),sidebarPage=0,sidebarSearchTimer=null,menuCandidates=[],menuCursor=0,menuPreviewId=null,menuPreviewTimer=null,menuPreviewSerial=0,recoveryTimer=null,networkRetries=0,mediaRetries=0,playbackStartedAt=0,playbackMode='relay',catalogPage=1,catalogTotal=0,catalogExhausted=false,catalogLoading=false,catalogSerial=0,channelIndexById=new Map(),searchResultIds=null,searchPage=1,searchTotal=0,searchTicket=0,searchDebounce=null,searchLoading=false;
-function authHeaders(){return $('token').value?{'X-Admin-Token':$('token').value}:{};}
+function authHeaders(){return {};}
 async function get(path){return NSatelliteAuth.json('/api/'+path,{headers:authHeaders()});}
 function isFavorite(c){return c.favorite===true||c.favorite===1||c.favorite==='1';}
 function matchingIndices(){
