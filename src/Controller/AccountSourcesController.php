@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace IptvService\Controller;
 
 use Doctrine\DBAL\Connection;
+use IptvService\Security\AccountSourceInput;
 use IptvService\Security\RequestRateLimiter;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
@@ -57,43 +58,25 @@ final class AccountSourcesController
     {
         try { $data=$request->toArray(); }
         catch (\Throwable) { return new JsonResponse(['error'=>'JSON invalide'],400); }
-        if (!$data || array_diff(array_keys($data),['name','kind','endpoint','username','password'])) {
-            return new JsonResponse(['error'=>'Champs non reconnus'],422);
-        }
-        $kind=$data['kind']??null;
-        $name=$data['name']??null;
-        $endpoint=$data['endpoint']??null;
-        if (!in_array($kind,['m3u','xtream'],true) || !is_string($name)
-            || trim($name)==='' || mb_strlen($name)>150 || !is_string($endpoint)
-            || strlen($endpoint)>2048) {
-            return new JsonResponse(['error'=>'Nom, type ou URL de source invalide'],422);
-        }
-        $parts=parse_url(trim($endpoint));
-        if (!is_array($parts) || strtolower((string)($parts['scheme']??''))!=='https'
-            || !isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])
-            || isset($parts['fragment']) || (isset($parts['port']) && (int)$parts['port']!==443)
-            || ($kind==='xtream' && isset($parts['query']))) {
-            return new JsonResponse(['error'=>'Une URL HTTPS sans identifiants intégrés est requise'],422);
-        }
-        $url=trim($endpoint);
-        $username=$data['username']??'';
-        $password=$data['password']??'';
-        if (!is_string($username)||!is_string($password)
-            || strlen($username)>256||strlen($password)>256
-            || ($kind==='xtream' && ($username===''||$password===''))) {
-            return new JsonResponse(['error'=>'Identifiants Xtream manquants ou invalides'],422);
+        try {
+            $input=AccountSourceInput::normalize($data);
+        } catch (\InvalidArgumentException $e) {
+            return new JsonResponse(['error'=>$e->getMessage()],422);
         }
         try {
-            // Uses the deployment's explicit IPTV_TRUSTED_HOSTS allowlist,
-            // public DNS checks and rebinding protections before queuing work.
-            $this->trusted->requestOptions($kind==='xtream'?rtrim($url,'/').'/player_api.php':$url);
+            // The form may accept HTTP :8080 or get.php?username=...,
+            // but the *server* still enforces explicitly approved public hosts,
+            // a pinned DNS result, blocked private IPs and no redirects.
+            $testUrl=$input['kind']==='xtream'
+                ? rtrim($input['url'],'/').'/player_api.php'
+                : $input['url'];
+            $this->trusted->requestOptions($testUrl);
         } catch (\Throwable) {
-            return new JsonResponse(['error'=>'Domaine fournisseur non approuvé ou inaccessible. Demande son autorisation à l’administrateur.'],422);
+            return new JsonResponse([
+                'error'=>'Hôte fournisseur non approuvé ou non résolu. Vérifie IPTV_TRUSTED_HOSTS et le DNS public.'
+            ],422);
         }
-        return [
-            'name'=>trim($name),'kind'=>$kind,'url'=>$url,
-            'credentials'=>$kind==='xtream'?['username'=>$username,'password'=>$password]:[]
-        ];
+        return $input;
     }
 
     #[Route('/api/account/sources',methods:['GET'])]

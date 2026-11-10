@@ -9,8 +9,7 @@ Elle n'exige jamais `IPTV_ADMIN_TOKEN`.
 - Lister uniquement les sources auxquelles le compte est autorisé.
 - Reconnaître une source personnelle (`managed=true`) d'un accès partagé
   par l'exploitant (`managed=false`).
-- Ajouter une source distante M3U (URL HTTPS) ou Xtream (URL HTTPS +
-  identifiant/mot de passe). MAG ne dispose pas encore d'un connecteur prêt :
+- Ajouter une source distante M3U (URL HTTP/HTTPS complète) ou Xtream (adresse de base HTTP/HTTPS, port optionnel, identifiant/mot de passe séparés). MAG ne dispose pas encore d'un connecteur prêt :
   il n'est donc pas proposé comme source fonctionnelle.
 - Modifier les paramètres d'une source **personnelle uniquement** en
   ressaisissant tous les identifiants. Aucune valeur chiffrée n'est réaffichée.
@@ -80,9 +79,35 @@ Les flags privés `NELSTV_ENABLE_IDENTITY_API=1` et
 liste blanche** : un exploitant valide le vrai nom DNS de chaque fournisseur
 dans `IPTV_TRUSTED_HOSTS`, après en avoir contrôlé la légitimité.
 Le nom doit résoudre vers des adresses IP publiques et n'être ni local
-ni réservé. Seules les URL HTTPS sans identifiants intégrés dans l'URL
-sont acceptées (l'URL M3U peut comprendre une query string confidentielle
-chiffrée côté serveur ; ne jamais la transmettre à un tiers).
+ni réservé. Les adresses **HTTP et HTTPS**, avec ports explicites (ex. 8080
+ou 8443), sont maintenant reconnues. Une connexion HTTP impose une
+**confirmation explicite du risque** dans le formulaire : les identifiants
+circulent en clair entre le serveur NSatellite et le fournisseur, même si
+le portail NSatellite est en HTTPS.
+
+### Exemples de formats
+
+- **Xtream Codes** : choisir « Xtream » ; adresse de base
+  `http://serveur.exemple:8080` ; saisir l'identifiant et le mot de passe
+  dans leurs champs respectifs. Ne pas coller `player_api.php` ni
+  `get.php` dans l'adresse Xtream.
+- **Playlist M3U** : choisir « M3U » et coller l'adresse **complète** :
+  `http://serveur.exemple:8080/get.php?username=EXEMPLE&password=EXEMPLE&type=m3u_plus&output=ts`.
+  Garder les paramètres `username`, `password`, `type` et `output`.
+- Le formulaire peut reconnaître un `get.php` collé en mode Xtream et
+  sélectionner M3U automatiquement.
+
+Ces exemples sont fictifs. N'expose jamais les identifiants réels dans
+un ticket GitHub ou une capture. L'URL M3U peut inclure des secrets dans
+ses paramètres, qui sont chiffrés en base côté serveur et **ne sont pas
+réaffichés** après enregistrement. L'approbation du domaine via
+`IPTV_TRUSTED_HOSTS` reste obligatoire : un format valide ne donne jamais
+automatiquement accès à un domaine arbitraire.
+
+**Attention :** `output=ts` concerne le format des flux annoncés par
+l'abonnement, pas la capacité du décodeur PC à lire les flux TS. La
+présence du bouquet dans la liste ne garantit toujours pas la lecture
+dans le navigateur, notamment avec TS, CORS ou les restrictions du fournisseur.
 
 ## Importer les chaînes
 
@@ -105,7 +130,7 @@ limitations CORS/HLS/TS et les droits du fournisseur s'appliquent toujours.
 1. Compte A : connexion sur `/home.html`, ouverture de `/account.html`
    sans seconde connexion ; le compte voit ses propres sources et les
    éventuelles sources attribuées.
-2. Création d'une source de test **autorisée**, avec hôte HTTPS approuvé :
+2. Création d'une source de test **autorisée**, avec hôte public HTTP(S) approuvé (et confirmation de risque HTTP si nécessaire) :
    un job `queued` apparaît et une seule nouvelle ligne de droits
    est liée au compte A.
 3. Lancement du worker sur un environnement de test : statut

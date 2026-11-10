@@ -55,7 +55,13 @@ if (!window.NSatelliteAuth) {
 <label for="name">Nom de la source<input id="name" maxlength="150" required placeholder="Mon bouquet"></label>
 <label for="kind">Type de source<select id="kind"><option value="m3u">Playlist M3U / M3U8</option><option value="xtream">Xtream Codes</option></select></label>
 </div>
-<label for="endpoint">URL HTTPS du fournisseur ou de la playlist<input id="endpoint" type="url" required maxlength="2048" pattern="https://.*" placeholder="https://exemple.fr/playlist.m3u"></label>
+<label for="endpoint">Adresse du serveur ou lien M3U complet (HTTP/HTTPS)<input id="endpoint" type="url" required maxlength="2048" pattern="https?://.*" placeholder="http://serveur.exemple:8080" aria-describedby="endpointHelp"></label>
+<p id="endpointHelp" class="muted">Xtream : adresse du serveur et port, puis identifiants ci-dessous. M3U : colle directement le lien complet get.php?username=…&amp;password=…&amp;type=m3u_plus&amp;output=ts.</p>
+<div id="httpWarning" class="note" hidden>
+<strong>Attention : connexion fournisseur non chiffrée (HTTP)</strong>
+<p>Le mot de passe Xtream, ou les identifiants présents dans un lien M3U, peuvent circuler en clair vers le fournisseur. Préfère HTTPS si ton abonnement le propose.</p>
+<label style="display:flex;gap:9px;align-items:flex-start;font-weight:500"><input id="allowHttp" type="checkbox" style="margin-top:5px">Je comprends ce risque et autorise cette connexion HTTP</label>
+</div>
 <div id="xtream" class="formRow" hidden>
 <label for="providerUser">Identifiant Xtream<input id="providerUser" autocomplete="off" maxlength="256"></label>
 <label for="providerPass">Mot de passe Xtream<input id="providerPass" type="password" autocomplete="new-password" maxlength="256"></label>
@@ -72,11 +78,31 @@ const $=id=>document.getElementById(id);
 let editingId=null,sessionActive=false;
 function notify(message){$('message').textContent=message;}
 function state(active){sessionActive=active;$('loginBox').hidden=active;$('workspace').hidden=!active;}
+function refreshTransport(){
+ const value=$('endpoint').value.trim();
+ const plain=/^http:\/\//i.test(value);
+ $('httpWarning').hidden=!plain;
+ $('allowHttp').required=plain;
+ if(!plain)$('allowHttp').checked=false;
+}
 function mode(){
  const xtream=$('kind').value==='xtream';
  $('xtream').hidden=!xtream;$('providerUser').required=xtream;$('providerPass').required=xtream;
+ $('endpoint').placeholder=xtream?'http://serveur.exemple:8080':'http://serveur.exemple:8080/get.php?username=...&password=...&type=m3u_plus&output=ts';
+ $('endpointHelp').textContent=xtream
+  ?'Xtream : colle seulement l’adresse de base avec le port (par exemple http://serveur.exemple:8080), puis renseigne les identifiants ci-dessous.'
+  :'M3U : colle l’URL complète, y compris les paramètres get.php?username=…&password=…&type=m3u_plus&output=ts.';
+ refreshTransport();
 }
 $('kind').onchange=mode;
+mode();
+$('endpoint').addEventListener('input',()=>{
+ if(/\/get\.php\?/i.test($('endpoint').value) && $('kind').value==='xtream'){
+  $('kind').value='m3u';
+  $('sourceMessage').textContent='Lien get.php détecté : type M3U sélectionné automatiquement.';
+ }
+ mode();
+});
 function clearEditor(){
  editingId=null;$('sourceForm').reset();mode();
  $('editorTitle').textContent='Ajouter une source';$('save').textContent='Ajouter et synchroniser';
@@ -85,7 +111,7 @@ function clearEditor(){
 function edit(item){
  if(!item.managed)return;
  editingId=item.id;$('name').value=item.name;$('kind').value=item.kind;mode();
- $('endpoint').value='';$('providerUser').value='';$('providerPass').value='';
+ $('endpoint').value='';$('providerUser').value='';$('providerPass').value='';$('allowHttp').checked=false;refreshTransport();
  $('editorTitle').textContent='Modifier '+item.name;
  $('save').textContent='Enregistrer et resynchroniser';$('cancel').hidden=false;
  $('sourceMessage').textContent='Renseigne à nouveau l’URL et les identifiants pour les modifier.';
@@ -126,7 +152,7 @@ async function refresh(){
 $('sourceForm').addEventListener('submit',async event=>{
  event.preventDefault();
  if(!sessionActive)return;
- const data={name:$('name').value.trim(),kind:$('kind').value,endpoint:$('endpoint').value.trim()};
+ const data={name:$('name').value.trim(),kind:$('kind').value,endpoint:$('endpoint').value.trim(),allow_insecure_http:$('allowHttp').checked};
  if(data.kind==='xtream'){data.username=$('providerUser').value;data.password=$('providerPass').value;}
  $('save').disabled=true;$('sourceMessage').textContent='Vérification du domaine et enregistrement…';
  try{

@@ -48,3 +48,11 @@ const dashboard=readFileSync('public/account.html','utf8');
 assert.ok(dashboard.includes('/api/account/sources'),'Account dashboard needs its own API');
 assert.ok(!dashboard.includes('access_token'),'Browser must never reveal an auth token');
 console.log('PASS NSatellite account navigation and no legacy admin token');
+
+const accountFormat=readFileSync('public/account.html','utf8');
+assert.ok(accountFormat.includes('pattern="https?://.*"'),'Account form must accept HTTP and HTTPS');
+assert.ok(accountFormat.includes('id="allowHttp"'),'HTTP warning acknowledgment must be visible');
+assert.ok(accountFormat.includes('allow_insecure_http'),'HTTP consent must reach the server');
+assert.ok(accountFormat.includes('get.php'),'Full M3U get.php format must be explained');
+assert.ok(!accountFormat.includes('id="token"'),'No global admin token must return');
+console.log('PASS account source form supports documented URLs and explicit HTTP consent');
