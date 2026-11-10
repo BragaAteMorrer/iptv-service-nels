@@ -42,7 +42,9 @@ final class AccountSourcesController
     private function owned(int $user,int $source): bool
     {
         return $this->db->fetchOne(
-            'SELECT 1 FROM source_owners WHERE user_id=? AND source_id=?',[$user,$source]
+            'SELECT 1 FROM source_owners o JOIN user_source_access a
+             ON a.source_id=o.source_id AND a.user_id=o.user_id
+             WHERE o.user_id=? AND o.source_id=?',[$user,$source]
         )!==false;
     }
 
@@ -160,6 +162,10 @@ final class AccountSourcesController
             return new JsonResponse(['error'=>'Trop de modifications'],429);
         $data=$this->input($request);
         if ($data instanceof JsonResponse) return $data;
+        $currentKind=$this->db->fetchOne('SELECT kind FROM sources WHERE id=?',[$id]);
+        if ($currentKind!==$data['kind']) {
+            return new JsonResponse(['error'=>'Le type de source ne peut pas être modifié. Crée une autre source.'],422);
+        }
         $this->db->beginTransaction();
         try {
             $pending=(int)$this->db->fetchOne(
