@@ -79,3 +79,16 @@ html[data-theme="tps"] .hero h1{font-style:italic}
  #multiGuide .gridCell{font-size:14px}
 }
 @media(prefers-reduced-motion:reduce){#screen #banner{backdrop-filter:none;-webkit-backdrop-filter:none}}
+
+/* Shared app header on home, TV, catalog, series, lineup, devices and account. */
+header.ns-app-header{
+ display:flex;align-items:center;justify-content:space-between;gap:12px 24px;
+ flex-wrap:wrap;padding:16px max(16px,4vw);background:var(--ns-surface);
+ border-bottom:1px solid var(--ns-border);color:var(--ns-text)
+}
+header.ns-app-header strong,header.ns-app-header h1{margin:0;font-size:clamp(20px,2.2vw,25px);line-height:1.35}
+header.ns-app-header nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px 13px;margin:0}
+header.ns-app-header a{color:var(--ns-muted);text-decoration:none;font-size:14px;font-weight:650}
+header.ns-app-header a:hover,header.ns-app-header a[aria-current="page"]{color:var(--ns-accent);text-decoration:underline}
+header.ns-app-header a[href="/account.html"]{border:1px solid var(--ns-accent);padding:6px 10px;border-radius:8px;color:var(--ns-accent)}
+@media(max-width:600px){header.ns-app-header{padding:13px 14px}header.ns-app-header nav{gap:7px 10px}}

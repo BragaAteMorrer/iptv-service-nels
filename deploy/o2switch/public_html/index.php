@@ -46,12 +46,12 @@ if (!PublicViewerRouteGate::allows($method,$path,$identityEnabled,$viewerEnabled
 if (!$health && (!$secure || !$validHost)) {
     denyRequest(403, 'HTTPS and valid hostname required');
 }
-if (!$health && in_array($request->getMethod(), ['POST', 'PATCH', 'DELETE'], true)) {
+if (!$health && in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
     $origin = (string)$request->headers->get('Origin', '');
     if ($origin !== '' && $origin !== 'https://'.$expectedHost) {
         denyRequest(403, 'Origin rejected');
     }
-    if (in_array($request->getMethod(), ['POST', 'PATCH'], true)) {
+    if (in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true)) {
         $type = strtolower(trim(explode(';', (string)$request->headers->get('Content-Type', ''))[0]));
         if ($type !== 'application/json') denyRequest(415, 'JSON required');
         $size = $request->headers->get('Content-Length');

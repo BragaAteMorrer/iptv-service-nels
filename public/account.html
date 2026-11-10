@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NSatellite — Mon espace</title>
+<style>
+:root{color-scheme:dark;--ns-bg:#071525;--ns-panel:#17283e;--ns-border:#40566c;--ns-accent:#70d9d2;--ns-text:#f4f8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--ns-bg);color:var(--ns-text);font:16px system-ui,-apple-system,sans-serif;line-height:1.55}
+a{color:#8ee4dd}header{padding:19px max(18px,5vw);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--ns-border);background:#112037}
+header strong{font-size:24px}nav{display:flex;flex-wrap:wrap;gap:15px}nav a{text-decoration:none}nav a:hover{text-decoration:underline}
+main{max-width:1130px;margin:auto;padding:25px 18px 70px}h1{font-size:clamp(26px,4vw,39px);margin:0 0 6px}h2{font-size:22px;margin:0 0 12px}
+p{margin:8px 0 15px}section{background:var(--ns-panel);border:1px solid var(--ns-border);border-radius:16px;padding:21px;margin-top:20px}
+label{display:grid;gap:6px;font-size:14px;font-weight:600}input,select,button{font:inherit;border:1px solid var(--ns-border);border-radius:9px;padding:10px 13px;min-width:0}
+input,select{color:var(--ns-text);background:#091a2d}button{color:var(--ns-text);background:#245170;cursor:pointer}button:hover{background:#31778a}
+button.primary{background:#15837d;border-color:#4be0d1;font-weight:750}button.primary:hover{background:#12958b}button:disabled{opacity:.55;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #7de6df;outline-offset:3px}
+.formRow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin:12px 0}
+.actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.muted{color:#c7d7e5}.note{padding:12px 14px;background:#102a3a;border-left:4px solid #65d9d2;border-radius:5px;font-size:14px}
+#sources{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+#sources li{padding:15px;border:1px solid var(--ns-border);border-radius:12px;background:#10253a;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+#sources small{display:block;color:#bdd0dc}#sources strong{display:block;font-size:17px}
+#message,#sourceMessage{min-height:1.5em;color:#9dece4}#loginBox{max-width:650px}.row{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.row input{flex:1;min-width:170px}[hidden]{display:none!important}
+@media(max-width:640px){.formRow{grid-template-columns:1fr}section{padding:15px}header{padding:16px}main{padding:16px 12px}}
+</style>
+<link rel="stylesheet" href="/assets/nsatellite-themes.css">
+<script src="/assets/nsatellite-auth.js"></script>
+<script>
+if (!window.NSatelliteAuth) {
+ const missing = () => Promise.reject(new Error('Module de connexion indisponible : vérifie le fichier /assets/nsatellite-auth.js (HTTP 200).'));
+ window.NSatelliteAuth=Object.freeze({login:missing,session:missing,logout:missing,request:missing,json:missing});
+}
+</script>
+<script src="/assets/nsatellite-theme.js" defer></script>
+</head><body>
+<header class="ns-app-header"><strong>◈ NSatellite</strong><nav aria-label="Navigation principale">
+<a href="/home.html">Accueil</a><a href="/tv.html">TV</a><a href="/catalog.html">Catalogue</a>
+<a href="/series.html">Séries</a><a href="/lineup.html">Mes chaînes</a><a href="/devices.html">Appareils</a>
+<a href="/account.html" aria-current="page">Mon espace</a></nav></header>
+<main><h1>Mon espace NSatellite</h1>
+<p class="muted">Gère tes accès IPTV depuis ton compte, sans jeton administrateur. Les identifiants de tes fournisseurs restent chiffrés sur le serveur.</p>
+<p id="message" role="status">Vérification de ta connexion…</p>
+<section id="loginBox" hidden><h2>Se connecter</h2>
+<form id="loginForm"><div class="formRow">
+<label for="email">Adresse e-mail<input type="email" id="email" autocomplete="username" required></label>
+<label for="password">Mot de passe<input type="password" id="password" autocomplete="current-password" required></label>
+</div><button class="primary" type="submit">Connexion</button></form></section>
+<div id="workspace" hidden>
+<div class="actions"><span>Session personnelle active</span><button id="logout" type="button">Se déconnecter</button></div>
+<section><h2>Mes accès IPTV</h2><p class="muted">Seules tes sources autorisées sont affichées. Les sources personnelles sont modifiables ; celles partagées par l’administrateur sont en lecture seule.</p>
+<div class="actions"><button id="refresh" type="button">Actualiser</button><a href="/lineup.html">Organiser mes chaînes</a></div>
+<ul id="sources"><li>Chargement des accès…</li></ul></section>
+<section><h2 id="editorTitle">Ajouter une source</h2>
+<p class="note">Ajoute uniquement un abonnement ou une playlist que tu es autorisé à utiliser. Les domaines doivent être approuvés par l’exploitant dans <code>IPTV_TRUSTED_HOSTS</code>. L’ajout prépare un import ; la synchronisation dépend du worker o2switch.</p>
+<form id="sourceForm">
+<div class="formRow">
+<label for="name">Nom de la source<input id="name" maxlength="150" required placeholder="Mon bouquet"></label>
+<label for="kind">Type de source<select id="kind"><option value="m3u">Playlist M3U / M3U8</option><option value="xtream">Xtream Codes</option></select></label>
+</div>
+<label for="endpoint">URL HTTPS du fournisseur ou de la playlist<input id="endpoint" type="url" required maxlength="2048" pattern="https://.*" placeholder="https://exemple.fr/playlist.m3u"></label>
+<div id="xtream" class="formRow" hidden>
+<label for="providerUser">Identifiant Xtream<input id="providerUser" autocomplete="off" maxlength="256"></label>
+<label for="providerPass">Mot de passe Xtream<input id="providerPass" type="password" autocomplete="new-password" maxlength="256"></label>
+</div>
+<p class="muted">Les identifiants ne sont jamais réaffichés. Pour modifier une source, renseigne de nouveau son URL et ses éventuels identifiants.</p>
+<div class="actions"><button id="save" class="primary" type="submit">Ajouter et synchroniser</button><button id="cancel" type="button" hidden>Annuler la modification</button></div>
+<p id="sourceMessage" role="status"></p>
+</form>
+</section>
+</div></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let editingId=null,sessionActive=false;
+function notify(message){$('message').textContent=message;}
+function state(active){sessionActive=active;$('loginBox').hidden=active;$('workspace').hidden=!active;}
+function mode(){
+ const xtream=$('kind').value==='xtream';
+ $('xtream').hidden=!xtream;$('providerUser').required=xtream;$('providerPass').required=xtream;
+}
+$('kind').onchange=mode;
+function clearEditor(){
+ editingId=null;$('sourceForm').reset();mode();
+ $('editorTitle').textContent='Ajouter une source';$('save').textContent='Ajouter et synchroniser';
+ $('cancel').hidden=true;$('sourceMessage').textContent='';
+}
+function edit(item){
+ if(!item.managed)return;
+ editingId=item.id;$('name').value=item.name;$('kind').value=item.kind;mode();
+ $('endpoint').value='';$('providerUser').value='';$('providerPass').value='';
+ $('editorTitle').textContent='Modifier '+item.name;
+ $('save').textContent='Enregistrer et resynchroniser';$('cancel').hidden=false;
+ $('sourceMessage').textContent='Renseigne à nouveau l’URL et les identifiants pour les modifier.';
+ $('sourceForm').scrollIntoView({behavior:'smooth',block:'start'});$('endpoint').focus();
+}
+$('cancel').onclick=clearEditor;
+async function refresh(){
+ notify('Chargement des accès du compte…');
+ try{
+  const data=await NSatelliteAuth.json('/api/account/sources');
+  const items=Array.isArray(data.items)?data.items:[];
+  const fragment=document.createDocumentFragment();
+  for(const item of items){
+   const row=document.createElement('li'),content=document.createElement('div'),name=document.createElement('strong'),details=document.createElement('small'),buttons=document.createElement('div');
+   name.textContent=item.name;
+   details.textContent=item.kind.toUpperCase()+' · '+item.status+' · import : '+(item.import_status||'aucun')+(item.managed?' · Source personnelle':' · Accès partagé');
+   content.append(name,details);buttons.className='actions';
+   if(item.managed){
+    const update=document.createElement('button');update.type='button';update.textContent='Modifier';update.onclick=()=>edit(item);
+    const sync=document.createElement('button');sync.type='button';sync.textContent='Synchroniser';
+    sync.onclick=async()=>{
+     sync.disabled=true;
+     try{
+      await NSatelliteAuth.json('/api/account/sources/'+encodeURIComponent(item.id)+'/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+      notify('Import demandé pour '+item.name);await refresh();
+     }catch(error){notify('Synchronisation : '+error.message);}
+     finally{sync.disabled=false;}
+    };
+    buttons.append(update,sync);
+   }
+   row.append(content,buttons);fragment.append(row);
+  }
+  $('sources').replaceChildren(fragment);
+  if(!items.length){const li=document.createElement('li');li.textContent='Aucune source attribuée. Ajoute une source M3U ou Xtream pour commencer.';$('sources').append(li);}
+  notify(items.length+' source(s) accessible(s) sur ton compte.');
+ }catch(error){notify('Mes accès : '+error.message);}
+}
+$('sourceForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!sessionActive)return;
+ const data={name:$('name').value.trim(),kind:$('kind').value,endpoint:$('endpoint').value.trim()};
+ if(data.kind==='xtream'){data.username=$('providerUser').value;data.password=$('providerPass').value;}
+ $('save').disabled=true;$('sourceMessage').textContent='Vérification du domaine et enregistrement…';
+ try{
+  const path=editingId===null?'/api/account/sources':'/api/account/sources/'+encodeURIComponent(editingId);
+  await NSatelliteAuth.json(path,{method:editingId===null?'POST':'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  clearEditor();$('sourceMessage').textContent='Source enregistrée. L’import est placé en file d’attente.';await refresh();
+ }catch(error){$('sourceMessage').textContent='Source non enregistrée : '+error.message;}
+ finally{$('save').disabled=false;$('providerPass').value='';}
+});
+$('loginForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ try{await NSatelliteAuth.login($('email').value,$('password').value);$('password').value='';state(true);await refresh();}
+ catch(error){notify('Connexion : '+error.message);}
+});
+$('logout').onclick=async()=>{
+ try{await NSatelliteAuth.logout();state(false);clearEditor();$('sources').replaceChildren();notify('Déconnecté.');}
+ catch(error){notify('Déconnexion : '+error.message);}
+};
+(async()=>{
+ try{
+  if(await NSatelliteAuth.session()){state(true);await refresh();}
+  else{state(false);notify('Connecte-toi pour gérer tes accès IPTV.');}
+ }catch(error){notify('Vérification du compte : '+error.message);state(false);}
+})();
+</script></body></html>

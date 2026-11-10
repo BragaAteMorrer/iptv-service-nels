@@ -32,3 +32,22 @@ See [Browser session and security](docs/BROWSER_SESSION.md) and the
 Merging `main` does not publish new pages: the server installation step is
 separate, and playback availability depends on source authorization and
 provider compatibility.
+
+## Mon espace : gestion des accès IPTV par compte
+
+La page `/account.html` permet à chaque utilisateur connecté d'ajouter
+ses propres accès M3U (HTTPS) ou Xtream, de voir le statut des sources
+autorisées, de modifier ses identifiants et de demander une synchronisation
+asynchrone. Un compte ne peut pas modifier les sources d'un autre, ni les
+sources simplement partagées avec lui. Aucun jeton administrateur global
+n'est demandé sur les pages publiques.
+
+**Migration impérative** : appliquer
+`migrations/mariadb/003_source_owners.sql` sur MariaDB après avoir sauvegardé
+la base, **avant** de déployer les nouvelles API. Les secrets fournisseurs
+sont chiffrés à l'aide de `IPTV_SECRET_KEY`, et les domaines restent soumis
+à `IPTV_TRUSTED_HOSTS`. L'import asynchrone exige un worker opérationnel.
+Voir [le guide complet](docs/ACCOUNT_DASHBOARD.md).
+
+La gestion globale des comptes et des sources partagées reste une tâche
+d'administration serveur distincte, non exposée à tous les abonnés.
