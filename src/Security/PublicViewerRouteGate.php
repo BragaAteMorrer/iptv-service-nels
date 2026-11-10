@@ -47,6 +47,10 @@ final class PublicViewerRouteGate
             'GET /api/v1/vod/indexed-series' => true,
         ];
         if (isset($viewerRoutes[$method.' '.$path])) return true;
+        if (in_array($method,['PUT'],true)
+            && preg_match('#^/api/account/sources/[1-9][0-9]*$#D',$path)===1) return true;
+        if ($method==='POST'
+            && preg_match('#^/api/account/sources/[1-9][0-9]*/sync$#D',$path)===1) return true;
         if ($method === 'GET'
             && preg_match('#^/api/epg/channel/[1-9][0-9]*$#D', $path) === 1) return true;
         if ($method === 'GET'
