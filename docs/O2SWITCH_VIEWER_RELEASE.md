@@ -178,3 +178,20 @@ requests require the same-origin CSRF header. After deployment test login,
 page reload, cross-page navigation, a browser restart, and logout. See
 [BROWSER_SESSION.md](BROWSER_SESSION.md) for the checklist. A GitHub merge
 alone still does not update o2switch.
+
+## Series and VOD production capabilities
+
+The browser series page now **shows the indexed series and episode metadata
+without misleading Play buttons**. On shared o2switch hosting the VOD session
+and byte relay endpoints are deliberately unavailable. Do not grant the
+development-only MP4 relay to the public gateway to make the buttons work.
+
+`PUT /api/v1/me/library/{id}/progress` is separately permitted as an
+**account-scoped metadata write**. Authentication, per-source authorization,
+CSRF and input validation remain enforced by the existing controller and
+browser-session listener. This route does not make VOD playback work.
+
+Smoke test: `php tests/o2switch_viewer_route_gate_smoke.php` covers the
+allowed PUT, disabled flags, wrong method and invalid IDs. The static Node
+test prevents accidental reintroduction of VOD relay calls on the public
+series page.
