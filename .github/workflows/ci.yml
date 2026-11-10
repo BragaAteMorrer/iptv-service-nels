@@ -64,4 +64,5 @@ jobs:
           php tests/identity_workflow_smoke.php
           php tests/lineup_server_search_smoke.php
           php tests/account_sources_smoke.php
+          php tests/account_source_creation_smoke.php
           php tests/account_source_formats_smoke.php
