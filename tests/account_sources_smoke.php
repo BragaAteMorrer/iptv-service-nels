@@ -30,7 +30,7 @@ $db->executeStatement('INSERT INTO user_source_access VALUES(1,10),(1,20),(2,20)
 $db->executeStatement("INSERT INTO import_jobs VALUES(1,10,'completed','remote')");
 $controller=new AccountSourcesController($db,new SecretBox(),new TrustedProviderEndpoint(),new RequestRateLimiter());
 $req=static function(string $method,string $path,string $token='',?array $body=null):Request {
- $headers=['CONTENT_TYPE'=>'application/json'];
+ $headers=['CONTENT_TYPE'=>'application/json','REMOTE_ADDR'=>'198.18.0.12'];
  if($token!=='')$headers['HTTP_AUTHORIZATION']='Bearer '.$token;
  return Request::create($path,$method,[],[],[],$headers,
      $body===null?null:json_encode($body,JSON_THROW_ON_ERROR));
