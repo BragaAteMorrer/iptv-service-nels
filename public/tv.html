@@ -447,7 +447,7 @@ function cacheChannels(items){
 function clearSearchFilter(){
  ++searchTicket;clearTimeout(searchDebounce);
  searchResultIds=null;searchPage=1;searchTotal=0;searchLoading=false;
- $('search').value='';$('sidebarSearch').value='';
+ $('search').value='';$('sidebarSearch').value='';$('menuSearch').value='';$('menuFavorites').checked=false;
  favoritesOnly=false;$('favoritesOnly').setAttribute('aria-pressed','false');
  $('favoritesOnly').textContent='☆ Toutes les chaînes';
  $('searchMore').hidden=true;
@@ -614,7 +614,7 @@ $('login').onclick=async()=>{
 $('browserLogout').onclick=async()=>{
  try{
   await NSatelliteAuth.logout();showBrowserSession(false);
-  ++requestId;playingId=null;stopPlayer();channels=[];index=0;updateMatches();drawSidebar();
+  ++requestId;++catalogSerial;playingId=null;stopPlayer();channels=[];channelIndexById.clear();index=0;catalogTotal=0;catalogExhausted=true;clearSearchFilter();updateMatches();drawSidebar();
   $('name').textContent='Connecte-toi pour regarder';$('info').textContent='Déconnecté';
  }catch(error){$('info').textContent='Déconnexion impossible : '+error.message;}
 };
@@ -627,7 +627,26 @@ async function restoreBrowserSession(){
  }catch(error){$('info').textContent='Vérification de connexion : '+error.message;}
 }
 void restoreBrowserSession();
-$('load').onclick=load;$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{clearTimeout(sidebarSearchTimer);sidebarSearchTimer=setTimeout(()=>{sidebarPage=0;drawSidebar();},150);});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{updateMatches();});$('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));$('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';const matches=updateMatches();if(matches.length&&!matches.includes(index)){index=matches[0];render();}};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=rebuildMenu;$('menuFavorites').onchange=rebuildMenu;$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
+$('load').onclick=load;
+$('loadMore').onclick=()=>{void loadMoreCatalog();};
+$('searchMore').onclick=()=>{void searchLineup(false);};
+$('menuLoadMore').onclick=async()=>{await loadMoreCatalog();menuOptions();rebuildMenu();};
+$('retryPlayback').onclick=()=>{if(channels[index])playChannel(channels[index]);};$('sidebarSearch').addEventListener('input',()=>{
+ $('search').value=$('sidebarSearch').value;sidebarPage=0;scheduleSearch();
+});$('sidebarPrev').onclick=()=>{sidebarPage=Math.max(0,sidebarPage-1);drawSidebar();};$('sidebarNext').onclick=()=>{sidebarPage++;drawSidebar();};$('search').addEventListener('input',()=>{$('sidebarSearch').value=$('search').value;sidebarPage=0;scheduleSearch();});$('search').addEventListener('keydown',async e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(searchDebounce);await searchLineup(true);selectFirstMatch();}});$('goNumber').onclick=selectNumber;$('channelNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectNumber();}});$('favoritesOnly').onclick=()=>{
+ favoritesOnly=!favoritesOnly;$('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));
+ $('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';
+ $('menuFavorites').checked=favoritesOnly;void searchLineup(true);
+};$('previous').onclick=()=>zap(-1);$('next').onclick=()=>zap(1);$('guideButton').onclick=toggleGuide;$('multiGuideButton').onclick=toggleMultiGuide;$('gridPrev').onclick=()=>{gridPage--;drawGrid();};$('gridNext').onclick=()=>{gridPage++;drawGrid();};$('gridRefresh').onclick=()=>drawGrid(true);$('guidePrevious').onclick=()=>zap(-1);$('guideNext').onclick=()=>zap(1);$('guideRefresh').onclick=loadGuide;$('fullscreen').onclick=toggleFullscreen;$('decoderMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('screenMenuButton').onclick=()=>setMenuOpen($('decoderMenu').hidden);$('menuClose').onclick=()=>setMenuOpen(false);$('menuTune').onclick=tuneMenuChannel;$('menuPrev').onclick=()=>moveMenuCursor(-MENU_PAGE_SIZE);$('menuNext').onclick=()=>moveMenuCursor(MENU_PAGE_SIZE);$('menuCategory').onchange=rebuildMenu;$('menuSearch').oninput=()=>{
+ $('search').value=$('menuSearch').value;$('sidebarSearch').value=$('menuSearch').value;
+ scheduleSearch();rebuildMenu();
+};
+$('menuFavorites').onchange=()=>{
+ favoritesOnly=$('menuFavorites').checked;
+ $('favoritesOnly').setAttribute('aria-pressed',String(favoritesOnly));
+ $('favoritesOnly').textContent=favoritesOnly?'★ Favoris uniquement':'☆ Toutes les chaînes';
+ void searchLineup(true);
+};$('menuSearch').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();$('decoderPanel').focus();moveMenuCursor(1);}});$('toggleMute').onclick=toggleMute;$('showBanner').onclick=showBanner;
 document.addEventListener('keydown',e=>{
  if(e.altKey||e.ctrlKey||e.metaKey)return;
  if(!$('decoderMenu').hidden){
@@ -647,5 +666,5 @@ document.addEventListener('keydown',e=>{
  if(actions[e.key]){e.preventDefault();actions[e.key]();}
 });
 epgTimer=setInterval(refreshEpgDisplay,30000);
-window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);clearTimeout(menuPreviewTimer);++menuPreviewSerial;stopPlayer();});
+window.addEventListener('pagehide',()=>{playingId=null;++requestId;++gridRequestId;clearInterval(epgTimer);++epgRequestId;clearDigits();clearTimeout(bannerTimeout);clearTimeout(sidebarSearchTimer);clearTimeout(searchDebounce);++searchTicket;++catalogSerial;clearTimeout(menuPreviewTimer);++menuPreviewSerial;stopPlayer();});
 </script></main></body></html>
