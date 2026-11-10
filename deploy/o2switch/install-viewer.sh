@@ -52,7 +52,11 @@ for asset in "${assets[@]}"; do
 done
 
 # Copy an explicit allowlist, never the entire public/ tree or admin tools.
-mkdir -p "$DEST/assets"
+# IMPORTANT: umask 077 is intentional for private backups above, but it
+# otherwise creates public_html/assets with mode 0700, causing Apache HTTP 403
+# for BOTH nsatellite-auth.js and nsatellite-theme.js on o2switch.
+# Explicitly make this PUBLIC static-assets directory traversable.
+install -d -m 0755 "$DEST/assets"
 for page in "${pages[@]}"; do
   install -m 0644 "$SOURCE/$page" "$DEST/$page"
 done
@@ -70,6 +74,13 @@ for asset in "${assets[@]}"; do cmp -s "$SOURCE/assets/$asset" "$DEST/assets/$as
 cmp -s "$DEPLOY/.htaccess" "$DEST/.htaccess"
 cmp -s "$DEPLOY/index.php" "$DEST/index.php"
 cmp -s "$DEPLOY/index.html" "$DEST/index.html"
+
+# Explicitly verify public permissions after copy. chmod is scoped to
+# the public assets folder only; backups and private app files remain 0700.
+test -x "$DEST/assets"
+for asset in "${assets[@]}"; do
+  test -r "$DEST/assets/$asset"
+done
 
 echo
 echo "NSatellite Web installé dans : $DEST"
