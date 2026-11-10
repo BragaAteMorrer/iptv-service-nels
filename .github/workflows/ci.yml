@@ -54,6 +54,7 @@ jobs:
         run: |
           php tests/direct_hls_policy_smoke.php
           php tests/o2switch_viewer_route_gate_smoke.php
+          php tests/vod_production_gate_smoke.php
           php tests/browser_session_security_smoke.php
           php tests/source_access_smoke.php
           php tests/session_lifecycle_smoke.php
