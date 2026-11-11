@@ -89,3 +89,4 @@ jobs:
           php tests/account_sources_smoke.php
           php tests/account_source_creation_smoke.php
           php tests/account_source_formats_smoke.php
+          php tests/sync_source_failure_diagnostics_smoke.php
