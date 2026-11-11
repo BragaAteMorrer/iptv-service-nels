@@ -319,3 +319,67 @@ l'étape de synchronisation et qu'il faudra diagnostiquer la source, le
 schéma du catalogue ou les accès fournisseur séparément. Une importation
 volumineuse peut prendre du temps ; ne pas lancer plusieurs workers en
 boucle pendant son exécution.
+
+
+## Synchronisation : message générique « Synchronization failed »
+
+Quand le worker peut réserver un job mais que le fournisseur ou le
+catalogue provoque une erreur, l'ancien synchroniseur affichait toujours
+le même message : cela ne permettait pas de distinguer une panne réseau
+d'une erreur SQL et pouvait masquer une migration manquante.
+
+Le synchroniseur affiche désormais exclusivement **une étape et une
+catégorie non sensibles** ; par exemple :
+
+\`\`\`text
+Synchronization failed: stage=xtream_live_request category=provider_http http_status=403
+Synchronization failed: stage=m3u_request category=network_tls_timeout
+Synchronization failed: stage=xtream_series_catalogue_write category=database_sql
+Synchronization failed: stage=authorize_endpoint category=trusted_host_or_dns
+Synchronization failed: stage=xtream_movie_request category=provider_invalid_json
+\`\`\`
+
+Ce sont des exemples, **pas les erreurs constatées pour une source réelle**.
+Les exceptions brutes de transport peuvent contenir des URL M3U avec
+\`username\` et \`password\` ; elles ne sont donc jamais imprimées ni
+transmises telles quelles. Le numéro HTTP éventuel est sûr.
+
+### Examiner la source et les prérequis sans tenter de téléchargement
+
+\`\`\`bash
+cd ~/nsatellite
+git status --short
+git pull --ff-only origin main
+php bin/doctor-sync-source.php
+\`\`\`
+
+Par défaut, ce diagnostic examine la **dernière source créée**, avec son
+identifiant numérique. Pour en choisir une :
+
+\`\`\`bash
+php bin/doctor-sync-source.php 123
+\`\`\`
+
+Il vérifie en lecture seule le schéma réel des tables \`channels\`,
+\`vod_series\` et \`vod_episodes\` suivant le type de source, le
+déchiffrement, les métadonnées de dernière tâche, et l'hôte approuvé
+résolu vers un DNS public **depuis PHP CLI**. Il ne télécharge rien du
+fournisseur et ne montre jamais les liens ou identifiants.
+
+### Relancer un job qui est déjà \`failed\`
+
+Après une tentative, le worker marque le job \`failed\` en cas d'échec.
+\`iptv:jobs:run\` ne réserve **que** des jobs \`queued\` ; une nouvelle
+invocation sans nouvelle tâche ne réessaie donc pas l'ancien job.
+
+Il faut utiliser \`https://nsatellite.bragaatemorrer.fr/account.html\`
+et cliquer **Synchroniser** sur sa source personnelle pour ajouter un
+nouveau job, puis, dans un terminal :
+
+\`\`\`bash
+php bin/console iptv:jobs:run --env=prod
+\`\`\`
+
+Ne pas supprimer puis recréer la source, ne pas multiplier les
+synchronisations en parallèle, ne pas partager les URL d'accès ni les
+messages bruts des clients HTTP.
