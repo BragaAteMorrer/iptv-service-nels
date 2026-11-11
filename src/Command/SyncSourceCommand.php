@@ -4,6 +4,8 @@ namespace IptvService\Command;
 
 use Doctrine\DBAL\Connection;
 use IptvService\Import\M3uParser;
+use IptvService\Import\ProviderHttpFailure;
+use IptvService\Import\SyncFailureInfo;
 use IptvService\Catalog\ContentClassifier;
 use IptvService\Security\SecretBox;
 use IptvService\Security\TrustedProviderEndpoint;
@@ -12,7 +14,6 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsCommand(name:'iptv:sync:source',description:'Synchronize a registered, authorized remote source')]
@@ -34,8 +35,8 @@ final class SyncSourceCommand extends Command {
 
     private function fetchJson(string $url,array $query): array {
         $options=$this->trustedEndpoint->requestOptions($url);
-        $response=HttpClient::create()->request('GET',$url,array_replace($options,['query'=>$query,'max_redirects'=>0]));
-        if ($response->getStatusCode()!==200) throw new \RuntimeException('Provider request failed');
+        $response=$this->http->request('GET',$url,array_replace($options,['query'=>$query,'max_redirects'=>0]));
+        if ($response->getStatusCode()!==200) throw new ProviderHttpFailure($response->getStatusCode());
         $data=$response->toArray();
         if (!is_array($data)) throw new \RuntimeException('Unexpected provider response');
         return $data;
@@ -54,14 +55,20 @@ final class SyncSourceCommand extends Command {
         if (!$source) {$output->writeln('<error>Source not found</error>'); return Command::FAILURE;}
         if ($source['kind']==='mag') {$output->writeln('<error>MAG requires a provider-specific authorized adapter</error>');return Command::FAILURE;}
         $count=0;
+        $stage='decrypt';
         try {
             $url=$this->secrets->decrypt($source['endpoint'])['url'];
+            $stage='authorize_endpoint';
             $downloadOptions=$this->trustedEndpoint->requestOptions($source['kind']==='m3u' ? $url : rtrim($url,'/').'/player_api.php');
+            $stage='decrypt';
             $credentials=$this->secrets->decrypt($source['credentials']);
+            $stage='mark_syncing';
             $this->db->executeStatement("UPDATE sources SET status='syncing' WHERE id=?",[$id]);
             if ($source['kind']==='m3u') {
+                $stage='m3u_request';
                 $response=$this->http->request('GET',$url,array_replace($downloadOptions,['timeout'=>90]));
-                if ($response->getStatusCode()!==200) throw new \RuntimeException('Playlist request failed');
+                if ($response->getStatusCode()!==200) throw new ProviderHttpFailure($response->getStatusCode());
+                $stage='m3u_download';
                 $stream=tmpfile();
                 if ($stream===false) throw new \RuntimeException('Could not create temporary file');
                 try {
@@ -74,6 +81,7 @@ final class SyncSourceCommand extends Command {
                         fwrite($stream,$part);
                     }
                     rewind($stream);
+                    $stage='m3u_catalogue_write';
                     $this->db->beginTransaction();
                     foreach ($this->parser->parse($stream) as $item) {
                         $streamUrl=$item['url'];
@@ -88,7 +96,9 @@ final class SyncSourceCommand extends Command {
                 $auth=['username'=>$credentials['username'],'password'=>$credentials['password']];
                 $actions=[['get_live_streams','live'],['get_vod_streams','movie'],['get_series','series']];
                 foreach($actions as [$action,$kind]) {
+                    $stage='xtream_'.$kind.'_request';
                     $entries=$this->fetchJson($api,$auth+['action'=>$action]);
+                    $stage='xtream_'.$kind.'_catalogue_write';
                     $this->db->beginTransaction();
                     foreach($entries as $item) {
                         if (!is_array($item)) continue;
@@ -118,6 +128,7 @@ final class SyncSourceCommand extends Command {
                     }
                     $this->db->commit();
                     if ($kind==='series') {
+                        $stage='xtream_series_cleanup';
                         // Old get_series records were mistakenly marked as episodes.
                         // Deactivate only these legacy placeholders, preserving genuine
                         // episode:<id> records, user progress and imported M3U rows.
@@ -130,13 +141,22 @@ final class SyncSourceCommand extends Command {
                     }
                 }
             }
+            $stage='mark_ready';
             $this->db->executeStatement("UPDATE sources SET status='ready',last_sync_at=NOW() WHERE id=?",[$id]);
             $output->writeln("Synchronized {$count} items");
             return Command::SUCCESS;
         } catch (\Throwable $e) {
-            if ($this->db->isTransactionActive()) $this->db->rollBack();
-            $this->db->executeStatement("UPDATE sources SET status='error' WHERE id=?",[$id]);
-            $output->writeln('<error>Synchronization failed; check trusted host, provider access and schema.</error>');
+            // Exception messages may contain provider URLs and credentials: never echo them.
+            $info=SyncFailureInfo::describe($e,$stage);
+            try {
+                if ($this->db->isTransactionActive()) $this->db->rollBack();
+                $this->db->executeStatement("UPDATE sources SET status='error' WHERE id=?",[$id]);
+            } catch (\Throwable) {
+                // Do not override the first failure with a status update error.
+            }
+            $detail=$info['http_status']!==null ? ' http_status='.$info['http_status'] : '';
+            $output->writeln('<error>Synchronization failed: stage='.$stage.
+                ' category='.$info['category'].$detail.'</error>');
             return Command::FAILURE;
         }
     }
