@@ -76,6 +76,8 @@ jobs:
         run: find src tests bin deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: MariaDB 11.4 live import queue claim and concurrency
         run: php tests/import_job_claim_mariadb_smoke.php
+      - name: MariaDB 11.4 Xtream offline M3U fallback without provider network
+        run: php tests/xtream_m3u_local_fallback_mariadb_smoke.php
       - name: Run deterministic smoke tests against disposable DB
         run: |
           php tests/direct_hls_policy_smoke.php
