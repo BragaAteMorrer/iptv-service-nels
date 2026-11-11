@@ -434,3 +434,72 @@ Ne jamais faire de \`curl -v\` avec une URL contenant des credentials,
 ni publier de \`.env.local\`, ni désactiver \`verify_peer\` ou la liste
 blanche SSRF. Ne pas partager d'IP privée, d'URL Xtream complète ou de
 sortie contenant des identifiants.
+
+
+## Contournement effectif pour les fournisseurs Xtream sur un port bloqué (ex. 8080)
+
+**Contexte :** un test TCP depuis o2switch échoue vers le port 8080
+du fournisseur, et le GET sans identifiants échoue en
+\`network_connect_refused\`. Le code PHP ne peut pas ouvrir un port
+bloqué par un pare-feu externe. La documentation officielle o2switch
+sur les exceptions de pare-feu n'offre pas d'ouverture arbitraire du
+port 8080 : https://faq.o2switch.fr/cpanel/outils/exception-parefeu/
+
+**Solution opérationnelle :** récupérer une playlist M3U/M3U8 autorisée
+**depuis un réseau qui peut joindre le fournisseur** (PC Windows, via
+l'export M3U officiel du fournisseur) et l'importer manuellement dans la
+source Xtream déjà enregistrée. Le nouveau code accepte **les sources
+de type \`xtream\`** pour \`iptv:import:m3u\` ; il ne nécessite pas
+d'autre table ni la suppression/recréation de la source.
+
+1. Depuis le PC, utiliser le tableau de bord ou la fonctionnalité
+   « exporter la playlist M3U » du fournisseur, **uniquement si son
+   usage est autorisé**. Ne pas publier le lien M3U : il peut contenir
+   le login et le mot de passe en clair dans les URL des flux.
+2. Dans cPanel -> **Gestionnaire de fichiers**, ouvrir
+   \`/home/kapi9449/nsatellite/var/imports/\`. Le dossier se crée
+   une seule fois en SSH :
+
+   \`\`\`bash
+   mkdir -p ~/nsatellite/var/imports
+   chmod 700 ~/nsatellite/var/imports
+   \`\`\`
+
+   Transférer le fichier depuis le PC dans ce dossier **privé hors
+   du document root \`public_html\`**. Par exemple \`bouquet.m3u\`.
+3. SSH, depuis le dépôt mis à jour :
+
+   \`\`\`bash
+   cd ~/nsatellite
+   git status --short
+   git pull --ff-only origin main
+   php -l src/Command/ImportM3uCommand.php
+   php bin/console iptv:import:m3u 1 "$HOME/nsatellite/var/imports/bouquet.m3u" --env=prod
+   \`\`\`
+
+4. Lorsque l'import répond \`Imported N catalog entries\` (N>0),
+   la source ID 1 devient \`ready\`. Vérifier
+   \`php bin/doctor-sync-source.php 1\` si nécessaire.
+   **Supprimer ensuite le fichier original** du serveur :
+
+   \`\`\`bash
+   rm -- "$HOME/nsatellite/var/imports/bouquet.m3u"
+   \`\`\`
+
+   Attention à ne supprimer le fichier qu'une fois l'import terminé
+   et la possibilité de reprise vérifiée. Ne pas laisser les liens
+   sensibles traîner dans \`public_html\`, \`error_log\` ou Git.
+
+Cette procédure **importe les métadonnées et les liens chiffrés en
+base**, mais **ne débloque pas les connexions sortantes TCP:8080
+depuis o2switch** et ne garantit pas la lecture vidéo dans le navigateur
+(CORS, format MPEG-TS, etc.). L'import n'est pas automatique.
+Ne pas lancer « Synchroniser » sur cette même source tant que
+l'accès réseau du serveur Xtream reste bloqué : cela recréerait une tâche
+distante vouée à échouer.
+
+**Pour une synchronisation Xtream automatique**, il faut un
+endpoint officiel du même fournisseur accessible depuis o2switch sur
+un port autorisé, idéalement HTTPS:443, OU déplacer le worker vers
+une machine autorisée à joindre le port 8080. Ne pas inventer un port
+ni envoyer les identifiants vers une adresse tierce.
