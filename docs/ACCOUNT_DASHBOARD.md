@@ -383,3 +383,54 @@ php bin/console iptv:jobs:run --env=prod
 Ne pas supprimer puis recréer la source, ne pas multiplier les
 synchronisations en parallèle, ne pas partager les URL d'accès ni les
 messages bruts des clients HTTP.
+
+
+## Réseau Xtream : stage=xtream_live_request / network_tls_timeout
+
+L'ancien code classait **toutes** les erreurs de transport en
+\`network_tls_timeout\`. Cette catégorie ne prouvait pas qu'il s'agissait
+d'un timeout. Le synchroniseur différencie désormais les principales
+erreurs de cURL (sans afficher leur message, qui peut contenir les
+identifiants dans une URL) :
+
+- \`network_timeout\` : délai de connexion ou réponse dépassé ;
+- \`network_connect_refused\` : connexion TCP refusée / impossible ;
+- \`network_dns_or_proxy\` : résolution DNS ou proxy ;
+- \`network_tls_handshake\`, \`network_tls_certificate\` : TLS ;
+- \`network_connection_closed\` : coupure / réponse vide ;
+- \`network_transport\` : autre erreur, à diagnostiquer.
+
+Pour le cas **Xtream**, lancer le diagnostic de réseau limité, indépendant
+de la file d'import :
+
+\`\`\`bash
+cd ~/nsatellite
+git pull --ff-only origin main
+php bin/doctor-xtream-network.php 1
+\`\`\`
+
+L'argument est l'ID de **la source NSatellite**, pas un identifiant Xtream.
+Sans argument, le script examine la dernière source Xtream.
+
+Le script :
+
+1. Déchiffre localement **uniquement l'adresse du serveur** et contrôle
+   l'hôte par \`IPTV_TRUSTED_HOSTS\` (DNS public et IP épinglée) ;
+2. Teste la connexion TCP sans identifiant avec un délai de 5 s ;
+3. Effectue un GET **sans identifiants** vers \`player_api.php\`, sans
+   redirection, et avec des délais plafonnés ;
+4. N'affiche que la catégorie de résultat et le code HTTP éventuel
+   (200/401/403 peuvent tous démontrer que le service HTTP répond) ;
+5. Ne modifie aucune table, aucun job et aucune source.
+
+Les tests HTTP peuvent contacter le fournisseur ; les codes 401/403
+**sans identifiants** n'indiquent pas à eux seuls que le compte Xtream
+est refusé. Si le TCP échoue, le port distant peut être filtré par
+l'hébergeur, refusé par le serveur, ou bloqué pour une autre raison.
+Si TCP fonctionne mais pas HTTP, étudier les proxys/cURL et les options
+réseau avant d'augmenter aveuglément les timeouts ou de désactiver TLS.
+
+Ne jamais faire de \`curl -v\` avec une URL contenant des credentials,
+ni publier de \`.env.local\`, ni désactiver \`verify_peer\` ou la liste
+blanche SSRF. Ne pas partager d'IP privée, d'URL Xtream complète ou de
+sortie contenant des identifiants.

@@ -73,7 +73,7 @@ jobs:
       - name: Regression — public assets must be readable by Apache
         run: bash tests/o2switch_asset_permissions_smoke.sh
       - name: PHP syntax validation
-        run: find src tests deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find src tests bin deploy/o2switch/public_html -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: MariaDB 11.4 live import queue claim and concurrency
         run: php tests/import_job_claim_mariadb_smoke.php
       - name: Run deterministic smoke tests against disposable DB
