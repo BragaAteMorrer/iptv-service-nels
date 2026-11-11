@@ -13,6 +13,7 @@ use IptvService\Security\TrustedProviderEndpoint;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Exception\TransportException;
 
 $check=static function(bool $ok,string $label):void {
     if(!$ok)throw new RuntimeException('FAIL: '.$label);
@@ -21,6 +22,26 @@ $check=static function(bool $ok,string $label):void {
 $provider=SyncFailureInfo::describe(new ProviderHttpFailure(403),'xtream_live_request');
 $check($provider['category']==='provider_http' && $provider['http_status']===403,
     'provider HTTP 403 diagnosis retains only the numeric status');
+
+// Interpret common cURL error codes without ever exposing an exception message.
+foreach([
+    28=>'network_timeout',
+    7=>'network_connect_refused',
+    6=>'network_dns_or_proxy',
+    60=>'network_tls_certificate',
+    35=>'network_tls_handshake',
+    56=>'network_connection_closed'
+] as $curlCode=>$category){
+    $message='cURL error '.$curlCode.': https://user:SECRET@provider.example.invalid:8080/player_api.php';
+    $info=SyncFailureInfo::describe(new TransportException($message),'xtream_live_request');
+    $check($info['category']===$category && $info['http_status']===null,
+        'safe cURL '.$curlCode.' category '.$category);
+    $check(!str_contains(json_encode($info),'SECRET')
+        && !str_contains(json_encode($info),'provider.example.invalid'),
+        'transport classification contains no credentials or endpoint');
+}
+$fallback=SyncFailureInfo::describe(new TransportException('Internal transport failure'),'xtream_live_request');
+$check($fallback['category']==='network_transport','unknown transport error gets nonmisleading category');
 
 $dns=SyncFailureInfo::describe(new RuntimeException('https://user:password@provider.invalid'),'authorize_endpoint');
 $check($dns['category']==='trusted_host_or_dns' && $dns['http_status']===null,
